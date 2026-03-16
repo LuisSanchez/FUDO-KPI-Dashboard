@@ -1,368 +1,831 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
+import {
+  ThemeProvider, createTheme, CssBaseline,
+  AppBar, Toolbar, Container, Box, Grid, Paper,
+  Typography, Button, Autocomplete, TextField,
+  ToggleButton, ToggleButtonGroup, Chip, Alert,
+  LinearProgress, Divider, Tooltip, Dialog,
+  DialogTitle, DialogContent, DialogActions, IconButton,
+  Table, TableBody, TableCell, TableContainer,
+  TableHead, TableRow, TableSortLabel,
+} from '@mui/material';
+import UploadFileIcon    from '@mui/icons-material/UploadFile';
+import CheckCircleIcon   from '@mui/icons-material/CheckCircle';
+import InfoOutlinedIcon  from '@mui/icons-material/InfoOutlined';
+import RefreshIcon       from '@mui/icons-material/Refresh';
+import TrendingUpIcon    from '@mui/icons-material/TrendingUp';
+import BalanceIcon       from '@mui/icons-material/Balance';
+import LocalPizzaIcon    from '@mui/icons-material/LocalPizza';
+import HelpOutlineIcon   from '@mui/icons-material/HelpOutline';
+import TableChartIcon    from '@mui/icons-material/TableChart';
+import ReceiptLongIcon   from '@mui/icons-material/ReceiptLong';
+import CloseIcon         from '@mui/icons-material/Close';
 
-// Configure axios base URL
 axios.defaults.baseURL = 'http://localhost:8000';
 
-// File Upload Component
-const FileDropzone = ({ onDrop, title, description, uploaded, fileName }) => {
+// ── Theme ─────────────────────────────────────────────────────────────────────
+const theme = createTheme({
+  palette: {
+    mode: 'dark',
+    primary:    { main: '#F97316' },
+    secondary:  { main: '#94A3B8' },
+    success:    { main: '#22C55E' },
+    error:      { main: '#EF4444' },
+    warning:    { main: '#FBBF24' },
+    background: { default: '#0F172A', paper: '#1E293B' },
+    text:       { primary: '#F1F5F9', secondary: '#94A3B8' },
+  },
+  typography: {
+    fontFamily: '"Inter", "Roboto", sans-serif',
+    h4: { fontWeight: 700 },
+    h6: { fontWeight: 600 },
+    subtitle2: {
+      fontWeight: 600, color: '#94A3B8',
+      textTransform: 'uppercase', letterSpacing: '0.08em', fontSize: '0.7rem',
+    },
+  },
+  shape: { borderRadius: 12 },
+  components: {
+    MuiPaper:  { styleOverrides: { root: { backgroundImage: 'none' } } },
+    MuiDialog: { styleOverrides: { paper: { backgroundImage: 'none', bgcolor: '#1E293B' } } },
+    MuiToggleButton: {
+      styleOverrides: {
+        root: {
+          border: '1px solid #334155', color: '#94A3B8', textTransform: 'none',
+          '&.Mui-selected': { backgroundColor: '#F9731620', color: '#F97316', borderColor: '#F97316' },
+        },
+      },
+    },
+    MuiTableCell: {
+      styleOverrides: {
+        root: { borderColor: '#334155' },
+        head: { fontWeight: 600, color: '#94A3B8', fontSize: '0.72rem',
+                textTransform: 'uppercase', letterSpacing: '0.06em', backgroundColor: '#0F172A' },
+      },
+    },
+  },
+});
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const CLP = (v) =>
+  new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(v);
+
+const PCT = (v, decimals = 1) => `${v > 0 ? '' : ''}${Number(v).toFixed(decimals)}%`;
+
+const MONTH_NAMES = {
+  '01':'Enero','02':'Febrero','03':'Marzo','04':'Abril',
+  '05':'Mayo','06':'Junio','07':'Julio','08':'Agosto',
+  '09':'Sep','10':'Oct','11':'Nov','12':'Dic',
+};
+const fmtMonth = (m) => { const [y, mo] = m.split('-'); return `${MONTH_NAMES[mo]} ${y}`; };
+
+const cmvColor = (pct) => pct <= 35 ? 'success' : pct <= 42 ? 'warning' : 'error';
+
+// ── Sub-components ─────────────────────────────────────────────────────────────
+
+const KpiRow = ({ label, value, highlight, tooltip, dimmed }) => (
+  <Box sx={{ display:'flex', justifyContent:'space-between', alignItems:'center',
+             py: 0.9, borderBottom:'1px solid', borderColor:'divider', opacity: dimmed ? 0.45 : 1 }}>
+    <Box sx={{ display:'flex', alignItems:'center', gap: 0.5 }}>
+      <Typography variant="body2" color="text.secondary">{label}</Typography>
+      {tooltip && (
+        <Tooltip title={tooltip} arrow>
+          <InfoOutlinedIcon sx={{ fontSize: 13, color: '#475569', cursor: 'help' }} />
+        </Tooltip>
+      )}
+    </Box>
+    <Typography variant="body2" fontWeight={600}
+      sx={{ color: highlight === 'pos' ? 'success.main' : highlight === 'neg' ? 'error.main' : 'text.primary' }}>
+      {value}
+    </Typography>
+  </Box>
+);
+
+const DropzoneCard = ({ onDrop, title, subtitle, uploaded, fileName }) => {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
+    onDrop, multiple: false,
     accept: {
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
       'application/vnd.ms-excel': ['.xls'],
     },
-    multiple: false,
   });
-
   return (
-    <div
-      {...getRootProps()}
-      className={`dropzone ${isDragActive ? 'active' : ''} ${uploaded ? 'uploaded' : ''}`}
-    >
+    <Paper {...getRootProps()} elevation={0} sx={{
+      p: 3, textAlign: 'center', cursor: 'pointer', transition: 'all .2s',
+      border: '2px dashed',
+      borderColor: uploaded ? 'success.main' : isDragActive ? 'primary.main' : '#334155',
+      bgcolor: uploaded ? '#22C55E10' : isDragActive ? '#F9731610' : 'background.paper',
+      '&:hover': { borderColor: uploaded ? 'success.main' : 'primary.main',
+                   transform: 'translateY(-2px)', bgcolor: uploaded ? '#22C55E15' : '#F9731610' },
+    }}>
       <input {...getInputProps()} />
-      <div className="dropzone-icon">{uploaded ? '✅' : '📁'}</div>
-      <h3>{uploaded ? fileName || title : title}</h3>
-      <p>{uploaded ? 'Archivo cargado correctamente' : description}</p>
-    </div>
+      <Box sx={{ mb: 1.5 }}>
+        {uploaded
+          ? <CheckCircleIcon sx={{ fontSize: 36, color: 'success.main' }} />
+          : <UploadFileIcon  sx={{ fontSize: 36, color: isDragActive ? 'primary.main' : '#475569' }} />}
+      </Box>
+      <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+        {uploaded ? fileName : title}
+      </Typography>
+      <Typography variant="caption" color="text.secondary">
+        {uploaded ? 'Cargado · haz clic para reemplazar' : subtitle}
+      </Typography>
+    </Paper>
   );
 };
 
-// Results Display Component
-const ResultsDisplay = ({ results }) => {
-  if (!results) return null;
-
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('es-CL', {
-      style: 'currency',
-      currency: 'CLP',
-      minimumFractionDigits: 0,
-    }).format(value);
-  };
-
-  const isPositive = (value) => value >= 0;
-
+const EbitdaGauge = ({ pct }) => {
+  const clamp = Math.max(-200, Math.min(60, pct));
+  const norm  = ((clamp + 200) / 260) * 100;
+  const zero  = (200 / 260) * 100;
+  const goal  = ((200 + 25) / 260) * 100;
   return (
-    <div className="results-section">
-      <h2>📊 Resultados</h2>
-      <div className="results-grid">
-        {/* Ingresos Card */}
-        <div className="result-card">
-          <h3>💰 Ingresos</h3>
-          <div className="result-item">
-            <span className="result-label">Total Ingreso</span>
-            <span className="result-value">
-              {formatCurrency(results.ingresos.total_ingreso)}
-            </span>
-          </div>
-          <div className="result-item">
-            <span className="result-label">Total Margen</span>
-            <span className="result-value">
-              {formatCurrency(results.ingresos.total_margen)}
-            </span>
-          </div>
-          <div className="result-item">
-            <span className="result-label">Comisión Total</span>
-            <span className="result-value">
-              {formatCurrency(results.ingresos.comision_total)}
-            </span>
-          </div>
-          <div className="result-item">
-            <span className="result-label">Costo Total</span>
-            <span className="result-value">
-              {formatCurrency(results.ingresos.costo_total)}
-            </span>
-          </div>
-          <div className="result-item">
-            <span className="result-label">Margen sin IVA</span>
-            <span className="result-value">
-              {formatCurrency(results.ingresos.total_margen_sin_iva)}
-            </span>
-          </div>
-        </div>
-
-        {/* Gastos Card */}
-        <div className="result-card">
-          <h3>💸 Gastos</h3>
-          <div className="result-item">
-            <span className="result-label">Gastos Totales</span>
-            <span className="result-value">
-              {formatCurrency(results.gastos.gastos_totales)}
-            </span>
-          </div>
-          <div className="result-item">
-            <span className="result-label">Pagados</span>
-            <span className="result-value">
-              {formatCurrency(results.gastos.pagados_totales)}
-            </span>
-          </div>
-          <div className="result-item">
-            <span className="result-label">Por Pagar</span>
-            <span className="result-value">
-              {formatCurrency(results.gastos.por_pagar_totales)}
-            </span>
-          </div>
-        </div>
-
-        {/* EBITDA Card */}
-        <div className="result-card ebitda-card">
-          <h3>📈 EBITDA</h3>
-          <div className="result-item">
-            <span className="result-label">EBITDA</span>
-            <span className={`result-value ${isPositive(results.ebitda.ebitda) ? 'positive' : 'negative'}`}>
-              {formatCurrency(results.ebitda.ebitda)}
-            </span>
-          </div>
-          <div className="result-item">
-            <span className="result-label">% EBITDA</span>
-            <span className={`result-value ${isPositive(results.ebitda.ebitda_percentage) ? 'positive' : 'negative'}`}>
-              {results.ebitda.ebitda_percentage}%
-            </span>
-          </div>
-          <div className="result-item">
-            <span className="result-label">Meta (25%)</span>
-            <span className="result-value">
-              {results.ebitda.ebitda_percentage >= 25 ? '✅ Alcanzada' : '❌ No alcanzada'}
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
+    <Box sx={{ mt: 2 }}>
+      <Box sx={{ position:'relative', height: 10, borderRadius: 5, bgcolor:'#0F172A', overflow:'hidden' }}>
+        {pct >= 0 ? (
+          <Box sx={{ position:'absolute', left:`${zero}%`, top:0, height:'100%',
+                     width:`${norm - zero}%`, bgcolor: pct >= 25 ? '#22C55E' : '#FBBF24',
+                     borderRadius: '0 5px 5px 0', transition:'width .6s ease' }} />
+        ) : (
+          <Box sx={{ position:'absolute', left:`${norm}%`, top:0, height:'100%',
+                     width:`${zero - norm}%`, bgcolor:'#EF4444',
+                     borderRadius:'5px 0 0 5px', transition:'width .6s ease' }} />
+        )}
+        <Box sx={{ position:'absolute', left:`${zero}%`, top:0, height:'100%', width:2, bgcolor:'#475569' }} />
+        <Box sx={{ position:'absolute', left:`${goal}%`, top:0, height:'100%', width:2, bgcolor:'#F97316' }} />
+      </Box>
+      <Box sx={{ display:'flex', justifyContent:'space-between', mt: 0.5 }}>
+        <Typography variant="caption" color="text.secondary">Pérdida</Typography>
+        <Typography variant="caption" color="text.secondary">0%</Typography>
+        <Typography variant="caption" color="primary.main" fontWeight={600}>Meta 25%</Typography>
+      </Box>
+    </Box>
   );
 };
 
-// Main App Component
-function App() {
-  const [salesFile, setSalesFile] = useState(null);
-  const [expensesFile, setExpensesFile] = useState(null);
-  const [products, setProducts] = useState([]);
-  const [selectedProduct, setSelectedProduct] = useState('');
-  const [quantity, setQuantity] = useState(0);
-  const [results, setResults] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
+const SimCard = ({ icon, title, units, alreadyMet, impossible, product, extraRevenue }) => (
+  <Paper elevation={0} sx={{
+    p: 3, border: '1px solid',
+    borderColor: alreadyMet ? 'success.main' : impossible ? '#1E293B' : 'divider',
+    position: 'relative', overflow: 'hidden',
+  }}>
+    {alreadyMet && (
+      <Box sx={{ position:'absolute', top:0, left:0, right:0, height:3,
+                 bgcolor:'success.main', borderRadius:'12px 12px 0 0' }} />
+    )}
+    <Box sx={{ display:'flex', alignItems:'center', gap:1, mb:2 }}>
+      {icon}
+      <Typography variant="subtitle2">{title}</Typography>
+    </Box>
+    {alreadyMet ? (
+      <Typography variant="h6" color="success.main">✓ Ya alcanzado</Typography>
+    ) : impossible ? (
+      <Box>
+        <Typography variant="h6" color="text.secondary">No calculable</Typography>
+        <Typography variant="caption" color="text.secondary">
+          El margen de este producto es insuficiente para alcanzar la meta
+        </Typography>
+      </Box>
+    ) : (
+      <Box>
+        <Typography variant="h3" fontWeight={700} color="primary.main">
+          {units?.toLocaleString('es-CL')}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+          unidades adicionales de <strong style={{ color:'#F1F5F9' }}>{product}</strong>
+        </Typography>
+        {extraRevenue != null && (
+          <Typography variant="caption" color="text.secondary" sx={{ display:'block', mt:1 }}>
+            ≈ {CLP(extraRevenue)} en ingresos adicionales (sin IVA)
+          </Typography>
+        )}
+      </Box>
+    )}
+  </Paper>
+);
 
-  // Handle sales file upload
-  const onSalesDrop = useCallback(async (acceptedFiles) => {
-    const file = acceptedFiles[0];
-    if (!file) return;
+// ── Help Modal ────────────────────────────────────────────────────────────────
+const HelpModal = ({ open, onClose }) => (
+  <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth
+    PaperProps={{ sx: { bgcolor:'#1E293B', border:'1px solid #334155' } }}>
+    <DialogTitle sx={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+      <Box sx={{ display:'flex', alignItems:'center', gap:1 }}>
+        <HelpOutlineIcon color="primary" />
+        <Typography variant="h6">Cómo funciona OMP Analytics</Typography>
+      </Box>
+      <IconButton onClick={onClose} size="small"><CloseIcon fontSize="small" /></IconButton>
+    </DialogTitle>
+    <DialogContent dividers sx={{ borderColor:'#334155' }}>
+      <Box sx={{ display:'flex', flexDirection:'column', gap:3 }}>
 
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
+        <Box>
+          <Typography variant="subtitle2" color="primary.main" sx={{ mb:1 }}>¿Qué hace esta app?</Typography>
+          <Typography variant="body2" color="text.secondary">
+            Analiza la rentabilidad de tu tienda de pizza cargando los reportes de ventas y gastos exportados
+            desde FUDO. Calcula automáticamente EBITDA, CMV, márgenes y simula cuántas unidades adicionales
+            necesitas vender para alcanzar el equilibrio o una meta de rentabilidad del 25%.
+          </Typography>
+        </Box>
 
-    const formData = new FormData();
-    formData.append('file', file);
+        <Box>
+          <Typography variant="subtitle2" color="primary.main" sx={{ mb:1 }}>Archivos necesarios (desde FUDO)</Typography>
+          <Box component="ul" sx={{ pl:2, m:0 }}>
+            {[
+              ['Ventas', 'Exportar reporte "Adiciones" (.xls). Contiene el detalle de cada ítem vendido con precio y costo de ingredientes.'],
+              ['Gastos', 'Exportar reporte "Gastos" (.xlsx). Contiene todos los gastos registrados con proveedor, categoría e importe.'],
+            ].map(([t, d]) => (
+              <Box component="li" key={t} sx={{ mb:1 }}>
+                <Typography variant="body2"><strong style={{ color:'#F1F5F9' }}>{t}:</strong>{' '}
+                  <span style={{ color:'#94A3B8' }}>{d}</span>
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        </Box>
 
-    try {
-      const response = await axios.post('/api/upload-sales/', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+        <Box>
+          <Typography variant="subtitle2" color="primary.main" sx={{ mb:1 }}>Cálculos y fórmulas</Typography>
+          <Box sx={{ display:'flex', flexDirection:'column', gap:1.5 }}>
+            {[
+              ['IVA (19%)', 'Los precios de venta de FUDO incluyen IVA, igual que los costos de ingredientes. Todos los valores "sin IVA" se obtienen dividiendo por 1.19, permitiendo comparar en términos netos. El IVA no es ingreso real — lo recaudas y lo devuelves al SII.'],
+              ['CMV — Costo de Mercadería Vendida', 'CMV% = (Costo ingredientes sin IVA) / (Ingreso sin IVA) × 100. Mide qué fracción de cada peso de venta se destina a ingredientes y modificadores. Rango ideal para restaurantes: 25–35%. Por debajo del 25% es excelente; por encima del 42% indica problemas en costos o precios.'],
+              ['Comisión Uber Eats (30%)', 'Los pedidos con origen "uber_eats" tienen un 30% del ingreso descontado como comisión de plataforma. Esta comisión se suma al costo total del ítem. El ingreso bruto que ves incluye la comisión; el margen ya la descuenta.'],
+              ['Margen bruto sin IVA', 'Ingreso sin IVA − COGS sin IVA (ingredientes + modificadores + comisiones). Representa lo que queda de cada venta antes de pagar gastos fijos.'],
+              ['EBITDA', 'EBITDA = Margen bruto sin IVA − Gastos operacionales. Los préstamos de socios y activos fijos (capex) se excluyen porque son actividades de financiamiento/inversión, no operacionales. El % se calcula sobre el ingreso sin IVA.'],
+              ['Simulador', 'Para el producto seleccionado, calcula el promedio de margen por unidad vendida históricamente. Luego resuelve: ¿cuántas unidades adicionales se necesitan para que EBITDA = 0 (equilibrio) y para que EBITDA% = 25%? La fórmula es x = (0.25·I + G − M) / (m − 0.25·i), donde M = margen actual, G = gastos, I = ingreso, m e i = margen e ingreso por unidad.'],
+            ].map(([title, text]) => (
+              <Box key={title}>
+                <Typography variant="body2" fontWeight={600} sx={{ color:'#F1F5F9', mb:0.3 }}>{title}</Typography>
+                <Typography variant="body2" color="text.secondary">{text}</Typography>
+              </Box>
+            ))}
+          </Box>
+        </Box>
 
-      setSalesFile(file.name);
-      setProducts(response.data.products);
-      setSuccess('Archivo de ventas cargado correctamente');
-    } catch (err) {
-      setError(
-        err.response?.data?.error ||
-        'Error al cargar el archivo de ventas'
-      );
-      console.error('Upload error:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+        <Box sx={{ bgcolor:'#F97316' + '15', border:'1px solid', borderColor:'#F97316' + '40',
+                   borderRadius:2, p:2 }}>
+          <Typography variant="body2" sx={{ color:'#FBBF24', fontWeight:600, mb:0.5 }}>
+            ⚠️ Los datos son efímeros
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Los archivos cargados se almacenan en memoria mientras el servidor está activo. Al reiniciar el
+            servidor o hacer clic en "Reiniciar", todos los datos se pierden. No se guarda ninguna información
+            en base de datos. En una versión futura se añadirá persistencia.
+          </Typography>
+        </Box>
 
-  // Handle expenses file upload
-  const onExpensesDrop = useCallback(async (acceptedFiles) => {
-    const file = acceptedFiles[0];
-    if (!file) return;
+      </Box>
+    </DialogContent>
+    <DialogActions sx={{ px:3, py:2 }}>
+      <Button onClick={onClose} variant="contained" color="primary">Entendido</Button>
+    </DialogActions>
+  </Dialog>
+);
 
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
+// ── Sales Table Modal ─────────────────────────────────────────────────────────
+const SalesTableModal = ({ open, onClose, data, month }) => {
+  const [orderBy, setOrderBy] = useState('ingreso_sin_iva');
+  const [order,   setOrder]   = useState('desc');
 
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      const response = await axios.post('/api/upload-expenses/', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      setExpensesFile(file.name);
-      setSuccess('Archivo de gastos cargado correctamente');
-    } catch (err) {
-      setError(
-        err.response?.data?.error ||
-        'Error al cargar el archivo de gastos'
-      );
-      console.error('Upload error:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Handle calculation
-  const handleCalculate = async () => {
-    if (!selectedProduct || quantity < 0) {
-      setError('Selecciona un producto y una cantidad válida');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
-
-    try {
-      const response = await axios.post('/api/calculate/', {
-        producto: selectedProduct,
-        cantidad: parseInt(quantity, 10),
-      });
-
-      setResults(response.data);
-    } catch (err) {
-      setError(
-        err.response?.data?.error ||
-        'Error al calcular los KPIs'
-      );
-      console.error('Calculation error:', err);
-    } finally {
-      setLoading(false);
-    }
+  const handleSort = (col) => {
+    if (orderBy === col) setOrder(o => o === 'asc' ? 'desc' : 'asc');
+    else { setOrderBy(col); setOrder('desc'); }
   };
 
-  // Handle reset
-  const handleReset = async () => {
-    try {
-      await axios.post('/api/reset/');
-      setSalesFile(null);
-      setExpensesFile(null);
-      setProducts([]);
-      setSelectedProduct('');
-      setQuantity(0);
-      setResults(null);
-      setError(null);
-      setSuccess('Datos reiniciados correctamente');
-    } catch (err) {
-      setError('Error al reiniciar los datos');
-    }
-  };
+  const sorted = [...(data || [])].sort((a, b) =>
+    order === 'asc' ? a[orderBy] - b[orderBy] : b[orderBy] - a[orderBy]
+  );
 
-  const canCalculate = salesFile && expensesFile && selectedProduct;
+  const cols = [
+    { id:'Producto',        label:'Producto',             numeric:false },
+    { id:'Categoría',       label:'Categoría',            numeric:false },
+    { id:'cantidad',        label:'Cant.',                numeric:true  },
+    { id:'ingreso_sin_iva', label:'Ingreso s/IVA',        numeric:true  },
+    { id:'cmv_pct',         label:'CMV%',                 numeric:true  },
+    { id:'cmv',             label:'CMV $',                numeric:true  },
+    { id:'margen_sin_iva',  label:'Margen s/IVA',         numeric:true  },
+    { id:'margen_pct',      label:'Margen%',              numeric:true  },
+    { id:'comision',        label:'Comisión UE',          numeric:true  },
+  ];
+
+  const totals = sorted.reduce((acc, r) => ({
+    cantidad:        acc.cantidad        + r.cantidad,
+    ingreso_sin_iva: acc.ingreso_sin_iva + r.ingreso_sin_iva,
+    cmv:             acc.cmv             + r.cmv,
+    margen_sin_iva:  acc.margen_sin_iva  + r.margen_sin_iva,
+    comision:        acc.comision        + r.comision,
+  }), { cantidad:0, ingreso_sin_iva:0, cmv:0, margen_sin_iva:0, comision:0 });
+  const totalCmvPct = totals.ingreso_sin_iva > 0 ? (totals.cmv / totals.ingreso_sin_iva * 100).toFixed(1) : '—';
+  const totalMarPct = totals.ingreso_sin_iva > 0 ? (totals.margen_sin_iva / totals.ingreso_sin_iva * 100).toFixed(1) : '—';
 
   return (
-    <div className="app">
-      <header>
-        <h1>🍕 Pizza EBITDA Simulator</h1>
-        <p>
-          Calcula cuántas pizzas necesitas vender para alcanzar al menos 25% de
-          EBITDA
-        </p>
-      </header>
-
-      {error && <div className="error-message">{error}</div>}
-      {success && <div className="success-message">{success}</div>}
-
-      {/* Upload Section */}
-      <div className="upload-section">
-        <FileDropzone
-          onDrop={onSalesDrop}
-          title="📥 Ventas"
-          description="Arrastra tu archivo de ventas (Excel) aquí o haz clic para seleccionarlo"
-          uploaded={!!salesFile}
-          fileName={salesFile}
-        />
-        <FileDropzone
-          onDrop={onExpensesDrop}
-          title="📥 Gastos"
-          description="Arrastra tu archivo de gastos (Excel) aquí o haz clic para seleccionarlo"
-          uploaded={!!expensesFile}
-          fileName={expensesFile}
-        />
-      </div>
-
-      {/* Simulation Section */}
-      {salesFile && products.length > 0 && (
-        <div className="simulation-section">
-          <h2>🎯 Simulación</h2>
-          <div className="simulation-controls">
-            <div className="form-group">
-              <label htmlFor="product">Producto</label>
-              <select
-                id="product"
-                value={selectedProduct}
-                onChange={(e) => setSelectedProduct(e.target.value)}
-              >
-                <option value="">Selecciona un producto</option>
-                {products.map((product, index) => (
-                  <option key={index} value={product}>
-                    {product}
-                  </option>
+    <Dialog open={open} onClose={onClose} maxWidth="xl" fullWidth
+      PaperProps={{ sx:{ bgcolor:'#1E293B', border:'1px solid #334155', maxHeight:'90vh' } }}>
+      <DialogTitle sx={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        <Box sx={{ display:'flex', alignItems:'center', gap:1 }}>
+          <TableChartIcon color="primary" />
+          <Typography variant="h6">Ventas por Producto{month && month !== 'all' ? ` — ${fmtMonth(month)}` : ''}</Typography>
+          <Chip label={`${sorted.length} productos`} size="small" variant="outlined" />
+        </Box>
+        <IconButton onClick={onClose} size="small"><CloseIcon fontSize="small" /></IconButton>
+      </DialogTitle>
+      <DialogContent sx={{ p:0 }}>
+        <TableContainer sx={{ maxHeight:'70vh' }}>
+          <Table stickyHeader size="small">
+            <TableHead>
+              <TableRow>
+                {cols.map(c => (
+                  <TableCell key={c.id} align={c.numeric ? 'right' : 'left'}>
+                    <TableSortLabel active={orderBy===c.id} direction={orderBy===c.id ? order : 'desc'}
+                      onClick={() => c.numeric && handleSort(c.id)}
+                      hideSortIcon={!c.numeric}>
+                      {c.label}
+                    </TableSortLabel>
+                  </TableCell>
                 ))}
-              </select>
-            </div>
-            <div className="form-group">
-              <label htmlFor="quantity">Cantidad adicional</label>
-              <input
-                type="number"
-                id="quantity"
-                min="0"
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                placeholder="0"
-              />
-            </div>
-            <button
-              className="btn-calculate"
-              onClick={handleCalculate}
-              disabled={!canCalculate || loading}
-            >
-              {loading ? 'Calculando...' : 'Calcular'}
-            </button>
-          </div>
-        </div>
-      )}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {sorted.map((row, i) => (
+                <TableRow key={i} hover sx={{ '&:hover': { bgcolor:'#ffffff08' } }}>
+                  <TableCell sx={{ fontWeight:500 }}>{row.Producto}</TableCell>
+                  <TableCell><Chip label={row.Categoría} size="small" sx={{ fontSize:'0.65rem', height:18 }} /></TableCell>
+                  <TableCell align="right">{row.cantidad.toLocaleString('es-CL')}</TableCell>
+                  <TableCell align="right">{CLP(row.ingreso_sin_iva)}</TableCell>
+                  <TableCell align="right">
+                    <Chip label={`${row.cmv_pct}%`} size="small" color={cmvColor(row.cmv_pct)}
+                      sx={{ fontSize:'0.65rem', height:20 }} />
+                  </TableCell>
+                  <TableCell align="right">{CLP(row.cmv)}</TableCell>
+                  <TableCell align="right">{CLP(row.margen_sin_iva)}</TableCell>
+                  <TableCell align="right">
+                    <Typography variant="caption"
+                      sx={{ color: row.margen_pct >= 50 ? 'success.main' : row.margen_pct >= 30 ? 'warning.main' : 'error.main',
+                            fontWeight:600 }}>
+                      {row.margen_pct}%
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="right" sx={{ color: row.comision > 0 ? 'error.main' : 'text.secondary' }}>
+                    {row.comision > 0 ? CLP(row.comision) : '—'}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {/* Totals row */}
+              <TableRow sx={{ bgcolor:'#0F172A', position:'sticky', bottom:0 }}>
+                <TableCell colSpan={2} sx={{ fontWeight:700, color:'#F1F5F9' }}>TOTAL</TableCell>
+                <TableCell align="right" sx={{ fontWeight:700 }}>{totals.cantidad.toLocaleString('es-CL')}</TableCell>
+                <TableCell align="right" sx={{ fontWeight:700 }}>{CLP(totals.ingreso_sin_iva)}</TableCell>
+                <TableCell align="right">
+                  <Chip label={`${totalCmvPct}%`} size="small" color={cmvColor(parseFloat(totalCmvPct))}
+                    sx={{ fontSize:'0.65rem', height:20 }} />
+                </TableCell>
+                <TableCell align="right" sx={{ fontWeight:700 }}>{CLP(totals.cmv)}</TableCell>
+                <TableCell align="right" sx={{ fontWeight:700 }}>{CLP(totals.margen_sin_iva)}</TableCell>
+                <TableCell align="right" sx={{ fontWeight:700, color:'success.main' }}>{totalMarPct}%</TableCell>
+                <TableCell align="right" sx={{ fontWeight:700, color:'error.main' }}>{CLP(totals.comision)}</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
-      {/* Results Section */}
-      {results && <ResultsDisplay results={results} />}
+// ── Expenses Table Modal ──────────────────────────────────────────────────────
+const TIPO_COLOR = { Operacional:'default', Préstamo:'warning', 'Activo Fijo':'info' };
 
-      {/* Empty State */}
-      {!salesFile && !expensesFile && !results && (
-        <div className="empty-state">
-          <div className="empty-state-icon">📊</div>
-          <p>
-            Carga tus archivos de ventas y gastos para comenzar la simulación
-          </p>
-        </div>
-      )}
+const ExpensesTableModal = ({ open, onClose, data, month }) => {
+  const [filter, setFilter] = useState('all');
 
-      {/* Reset Button */}
-      {(salesFile || expensesFile || results) && (
-        <div style={{ textAlign: 'center', marginTop: '30px' }}>
-          <button
-            onClick={handleReset}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: '#666',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-            }}
-          >
-            🔄 Reiniciar Todo
-          </button>
-        </div>
-      )}
-    </div>
+  const filtered = (data || []).filter(r => filter === 'all' || r.Tipo === filter);
+  const total = filtered.reduce((s, r) => s + r.Importe, 0);
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="xl" fullWidth
+      PaperProps={{ sx:{ bgcolor:'#1E293B', border:'1px solid #334155', maxHeight:'90vh' } }}>
+      <DialogTitle sx={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        <Box sx={{ display:'flex', alignItems:'center', gap:1 }}>
+          <ReceiptLongIcon color="primary" />
+          <Typography variant="h6">Gastos{month && month !== 'all' ? ` — ${fmtMonth(month)}` : ''}</Typography>
+          <Chip label={`${filtered.length} registros`} size="small" variant="outlined" />
+        </Box>
+        <IconButton onClick={onClose} size="small"><CloseIcon fontSize="small" /></IconButton>
+      </DialogTitle>
+      <DialogContent sx={{ p:0 }}>
+        {/* Filter tabs */}
+        <Box sx={{ px:2, pt:2, pb:1, display:'flex', gap:1 }}>
+          {['all','Operacional','Préstamo','Activo Fijo'].map(t => (
+            <Chip key={t} label={t === 'all' ? 'Todos' : t} size="small"
+              onClick={() => setFilter(t)} variant={filter === t ? 'filled' : 'outlined'}
+              color={filter === t ? 'primary' : 'default'} sx={{ cursor:'pointer' }} />
+          ))}
+          <Box sx={{ ml:'auto' }}>
+            <Typography variant="body2" fontWeight={600}>Total: {CLP(total)}</Typography>
+          </Box>
+        </Box>
+        <TableContainer sx={{ maxHeight:'65vh' }}>
+          <Table stickyHeader size="small">
+            <TableHead>
+              <TableRow>
+                {['Fecha','Proveedor','Categoría','Subcategoría','Comentario','Importe','Estado','Tipo'].map(h => (
+                  <TableCell key={h} align={h === 'Importe' ? 'right' : 'left'}>{h}</TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filtered.map((row, i) => (
+                <TableRow key={i} hover sx={{ '&:hover':{ bgcolor:'#ffffff08' } }}>
+                  <TableCell sx={{ whiteSpace:'nowrap', color:'text.secondary' }}>{row.Fecha}</TableCell>
+                  <TableCell sx={{ fontWeight:500, maxWidth:180 }}>{row.Proveedor}</TableCell>
+                  <TableCell>{row.Categoría}</TableCell>
+                  <TableCell sx={{ color:'text.secondary', fontSize:'0.8rem' }}>{row.Subcategoría || '—'}</TableCell>
+                  <TableCell sx={{ color:'text.secondary', fontSize:'0.8rem', maxWidth:200 }}>{row.Comentario || '—'}</TableCell>
+                  <TableCell align="right" sx={{ fontWeight:600 }}>{CLP(row.Importe)}</TableCell>
+                  <TableCell>
+                    <Chip label={row['Estado del pago']} size="small"
+                      color={row['Estado del pago'] === 'Pagado' ? 'success' : 'warning'}
+                      sx={{ fontSize:'0.65rem', height:20 }} />
+                  </TableCell>
+                  <TableCell>
+                    <Chip label={row.Tipo} size="small" color={TIPO_COLOR[row.Tipo] || 'default'}
+                      sx={{ fontSize:'0.65rem', height:20 }} />
+                  </TableCell>
+                </TableRow>
+              ))}
+              <TableRow sx={{ bgcolor:'#0F172A', position:'sticky', bottom:0 }}>
+                <TableCell colSpan={5} sx={{ fontWeight:700 }}>TOTAL</TableCell>
+                <TableCell align="right" sx={{ fontWeight:700 }}>{CLP(total)}</TableCell>
+                <TableCell colSpan={2} />
+              </TableRow>
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// ── Main App ──────────────────────────────────────────────────────────────────
+export default function App() {
+  const [salesFile,       setSalesFile]       = useState(null);
+  const [expensesFile,    setExpensesFile]     = useState(null);
+  const [months,          setMonths]           = useState([]);
+  const [selectedMonth,   setSelectedMonth]    = useState('all');
+  const [products,        setProducts]         = useState([]);
+  const [selectedProduct, setSelectedProduct]  = useState(null);
+  const [results,         setResults]          = useState(null);
+  const [loading,         setLoading]          = useState(false);
+  const [error,           setError]            = useState(null);
+
+  const [helpOpen,          setHelpOpen]          = useState(false);
+  const [salesTableOpen,    setSalesTableOpen]     = useState(false);
+  const [expensesTableOpen, setExpensesTableOpen]  = useState(false);
+  const [salesTableData,    setSalesTableData]     = useState([]);
+  const [expensesTableData, setExpensesTableData]  = useState([]);
+
+  const bothUploaded = !!(salesFile && expensesFile);
+
+  // ── Calculate KPIs ─────────────────────────────────────────────────────────
+  const calculate = useCallback(async (month, product) => {
+    if (!salesFile || !expensesFile) return;
+    setLoading(true); setError(null);
+    try {
+      const body = {};
+      if (month && month !== 'all') body.month = month;
+      if (product) body.producto = product;
+      const res = await axios.post('/api/calculate/', body);
+      setResults(res.data);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error al calcular los KPIs');
+    } finally { setLoading(false); }
+  }, [salesFile, expensesFile]);
+
+  // Auto-calculate once both files are ready
+  useEffect(() => {
+    if (bothUploaded) calculate(selectedMonth, selectedProduct);
+  }, [bothUploaded]); // eslint-disable-line
+
+  // ── Upload handlers ────────────────────────────────────────────────────────
+  const onSalesDrop = useCallback(async (files) => {
+    const file = files[0]; if (!file) return;
+    setLoading(true); setError(null);
+    const fd = new FormData(); fd.append('file', file);
+    try {
+      const res = await axios.post('/api/upload-sales/', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setSalesFile(file.name);
+      setProducts(res.data.products || []);
+      setMonths(res.data.months || []);
+      setSelectedMonth('all');
+      setSelectedProduct(null);
+      if (expensesFile) calculate('all', null);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error al cargar ventas');
+    } finally { setLoading(false); }
+  }, [expensesFile, calculate]);
+
+  const onExpensesDrop = useCallback(async (files) => {
+    const file = files[0]; if (!file) return;
+    setLoading(true); setError(null);
+    const fd = new FormData(); fd.append('file', file);
+    try {
+      await axios.post('/api/upload-expenses/', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setExpensesFile(file.name);
+      if (salesFile) calculate(selectedMonth, selectedProduct);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error al cargar gastos');
+    } finally { setLoading(false); }
+  }, [salesFile, selectedMonth, selectedProduct, calculate]);
+
+  // ── Month / Product ────────────────────────────────────────────────────────
+  const handleMonthChange = (_, val) => {
+    if (!val) return;
+    setSelectedMonth(val);
+    setSelectedProduct(null);
+    setResults(null);
+    calculate(val, null);
+  };
+
+  const handleProductChange = (_, val) => {
+    setSelectedProduct(val);
+    calculate(selectedMonth, val);
+  };
+
+  // ── Table modals ───────────────────────────────────────────────────────────
+  const openSalesTable = async () => {
+    try {
+      const params = selectedMonth && selectedMonth !== 'all' ? `?month=${selectedMonth}` : '';
+      const res = await axios.get(`/api/data/sales/${params}`);
+      setSalesTableData(res.data);
+      setSalesTableOpen(true);
+    } catch (err) { setError('Error al cargar tabla de ventas'); }
+  };
+
+  const openExpensesTable = async () => {
+    try {
+      const params = selectedMonth && selectedMonth !== 'all' ? `?month=${selectedMonth}` : '';
+      const res = await axios.get(`/api/data/expenses/${params}`);
+      setExpensesTableData(res.data);
+      setExpensesTableOpen(true);
+    } catch (err) { setError('Error al cargar tabla de gastos'); }
+  };
+
+  // ── Reset ──────────────────────────────────────────────────────────────────
+  const handleReset = async () => {
+    try { await axios.post('/api/reset/'); } catch (_) {}
+    setSalesFile(null); setExpensesFile(null); setMonths([]); setProducts([]);
+    setSelectedMonth('all'); setSelectedProduct(null); setResults(null); setError(null);
+  };
+
+  const sim = results?.simulation;
+  const ing = results?.ingresos;
+  const gas = results?.gastos;
+  const ebt = results?.ebitda;
+
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+
+      {/* ── AppBar ── */}
+      <AppBar position="static" elevation={0}
+        sx={{ bgcolor:'#0F172A', borderBottom:'1px solid #1E293B' }}>
+        <Toolbar sx={{ maxWidth:1200, mx:'auto', width:'100%', px:{ xs:2, md:4 }, gap:1 }}>
+          <LocalPizzaIcon sx={{ color:'primary.main', fontSize:28 }} />
+          <Box sx={{ flexGrow:1 }}>
+            <Typography variant="h6" fontWeight={700} sx={{ lineHeight:1.2 }}>OMP Analytics</Typography>
+            <Typography variant="caption" color="text.secondary">Pizza Finance Dashboard</Typography>
+          </Box>
+          {bothUploaded && (
+            <>
+              <Tooltip title="Ver tabla de ventas">
+                <Button size="small" startIcon={<TableChartIcon />} onClick={openSalesTable}
+                  sx={{ color:'text.secondary', '&:hover':{ color:'text.primary' } }}>
+                  Ventas
+                </Button>
+              </Tooltip>
+              <Tooltip title="Ver tabla de gastos">
+                <Button size="small" startIcon={<ReceiptLongIcon />} onClick={openExpensesTable}
+                  sx={{ color:'text.secondary', '&:hover':{ color:'text.primary' } }}>
+                  Gastos
+                </Button>
+              </Tooltip>
+            </>
+          )}
+          <Tooltip title="Cómo funciona">
+            <IconButton onClick={() => setHelpOpen(true)} size="small" sx={{ color:'text.secondary' }}>
+              <HelpOutlineIcon />
+            </IconButton>
+          </Tooltip>
+          {(salesFile || expensesFile) && (
+            <Tooltip title="Reiniciar datos">
+              <IconButton onClick={handleReset} size="small" sx={{ color:'text.secondary' }}>
+                <RefreshIcon />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Toolbar>
+      </AppBar>
+
+      <Container maxWidth="lg" sx={{ py:4 }}>
+
+        {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb:3 }}>{error}</Alert>}
+
+        {/* ── Upload ── */}
+        <Grid container spacing={2} sx={{ mb:3 }}>
+          <Grid item xs={12} sm={6}>
+            <DropzoneCard onDrop={onSalesDrop} title="Archivo de Ventas"
+              subtitle="FUDO → Adiciones (.xls / .xlsx)"
+              uploaded={!!salesFile} fileName={salesFile} />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <DropzoneCard onDrop={onExpensesDrop} title="Archivo de Gastos"
+              subtitle="FUDO → Gastos (.xlsx)"
+              uploaded={!!expensesFile} fileName={expensesFile} />
+          </Grid>
+        </Grid>
+
+        {loading && <LinearProgress color="primary" sx={{ mb:3, borderRadius:1 }} />}
+
+        {/* ── Month selector ── */}
+        {bothUploaded && months.length > 1 && (
+          <Box sx={{ mb:3 }}>
+            <Typography variant="subtitle2" sx={{ mb:1 }}>Período</Typography>
+            <ToggleButtonGroup value={selectedMonth} exclusive onChange={handleMonthChange} size="small">
+              <ToggleButton value="all">Todos</ToggleButton>
+              {months.map(m => (
+                <ToggleButton key={m} value={m}>{fmtMonth(m)}</ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+          </Box>
+        )}
+
+        {/* ── KPI Cards ── */}
+        {results && (
+          <Grid container spacing={2} sx={{ mb:3 }}>
+
+            {/* Ingresos */}
+            <Grid item xs={12} md={4}>
+              <Paper elevation={0} sx={{ p:3, height:'100%', border:'1px solid #1E3A5F' }}>
+                <Typography variant="subtitle2" sx={{ mb:2 }}>💰 Ingresos</Typography>
+                <KpiRow label="Total bruto (c/IVA)"    value={CLP(ing.total_ingreso)} />
+                <KpiRow label="Total sin IVA"          value={CLP(ing.total_ingreso_sin_iva)} />
+                <KpiRow label="COGS sin IVA"           value={CLP(ing.costo_sin_iva)} />
+                <KpiRow label="Comisiones Uber Eats"   value={CLP(ing.comision_total)} highlight="neg"
+                  tooltip="30% del ingreso de pedidos Uber Eats" />
+                <KpiRow label="Margen bruto sin IVA"   value={CLP(ing.total_margen_sin_iva)} highlight="pos" />
+                <Divider sx={{ my:1.5 }} />
+                <Box sx={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ mb:0.3 }}>CMV</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Costo de Mercadería Vendida · Meta: 25–35%
+                    </Typography>
+                  </Box>
+                  <Box sx={{ textAlign:'right' }}>
+                    <Chip
+                      label={`${ing.cmv_percentage}%`}
+                      color={cmvColor(ing.cmv_percentage)}
+                      size="small"
+                      sx={{ fontWeight:700, fontSize:'0.8rem', height:26, mb:0.5 }}
+                    />
+                    <Typography variant="caption" color="text.secondary" sx={{ display:'block' }}>
+                      {CLP(ing.cmv)}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Paper>
+            </Grid>
+
+            {/* Gastos */}
+            <Grid item xs={12} md={4}>
+              <Paper elevation={0} sx={{ p:3, height:'100%', border:'1px solid #1E3A5F' }}>
+                <Typography variant="subtitle2" sx={{ mb:2 }}>💸 Gastos Operacionales</Typography>
+                <KpiRow label="Total operacional" value={CLP(gas.gastos_totales)} highlight="neg" />
+                <KpiRow label="Pagado"            value={CLP(gas.pagados_totales)} />
+                <KpiRow label="Por pagar"         value={CLP(gas.por_pagar_totales)}
+                  highlight={gas.por_pagar_totales > 0 ? 'neg' : undefined} />
+                <Divider sx={{ my:1.5 }} />
+                <Typography variant="subtitle2" sx={{ mb:1, opacity:0.5 }}>Excluidos del EBITDA</Typography>
+                <KpiRow label="Préstamos socios" value={CLP(gas.prestamos_socios)} dimmed
+                  tooltip="Actividad de financiamiento — no afecta el EBITDA operacional" />
+                <KpiRow label="Activo fijo (capex)" value={CLP(gas.activo_fijo)} dimmed
+                  tooltip="Inversión en activos fijos — excluida del EBITDA" />
+              </Paper>
+            </Grid>
+
+            {/* EBITDA */}
+            <Grid item xs={12} md={4}>
+              <Paper elevation={0} sx={{ p:3, height:'100%', border:'1px solid',
+                borderColor: ebt.ebitda >= 0 ? '#1E3A5F' : '#7F1D1D' }}>
+                <Typography variant="subtitle2" sx={{ mb:2 }}>📈 EBITDA</Typography>
+                <Box sx={{ textAlign:'center', py:1.5 }}>
+                  <Typography variant="h2" fontWeight={700} sx={{
+                    color: ebt.ebitda_percentage >= 25 ? 'success.main'
+                         : ebt.ebitda_percentage >= 0  ? 'warning.main' : 'error.main',
+                  }}>
+                    {ebt.ebitda_percentage > 0 ? '+' : ''}{ebt.ebitda_percentage}%
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt:0.5 }}>
+                    {CLP(ebt.ebitda)}
+                  </Typography>
+                </Box>
+                <EbitdaGauge pct={ebt.ebitda_percentage} />
+                <Box sx={{ mt:2, textAlign:'center' }}>
+                  <Chip size="small"
+                    label={ebt.ebitda_percentage >= 25
+                      ? '✓ Meta 25% alcanzada'
+                      : `Faltan ${(25 - ebt.ebitda_percentage).toFixed(1)}pp para la meta`}
+                    color={ebt.ebitda_percentage >= 25 ? 'success' : 'default'}
+                    sx={{ fontWeight:500 }}
+                  />
+                </Box>
+              </Paper>
+            </Grid>
+
+          </Grid>
+        )}
+
+        {/* ── Simulator ── */}
+        {bothUploaded && products.length > 0 && (
+          <Paper elevation={0} sx={{ p:3, border:'1px solid #1E293B' }}>
+            <Typography variant="subtitle2" sx={{ mb:0.5 }}>🎯 Simulador</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb:2.5 }}>
+              Selecciona un producto para calcular cuántas unidades adicionales necesitas vender
+            </Typography>
+            <Autocomplete
+              options={products} value={selectedProduct} onChange={handleProductChange}
+              renderInput={(params) => (
+                <TextField {...params} label="Buscar producto" size="small"
+                  sx={{ '& .MuiOutlinedInput-root': { bgcolor:'#0F172A' } }} />
+              )}
+              sx={{ maxWidth:480, mb: sim ? 3 : 0 }}
+            />
+
+            {sim && (
+              <>
+                <Box sx={{ display:'flex', gap:1.5, mb:2.5, flexWrap:'wrap' }}>
+                  <Chip size="small" label={`Precio promedio s/IVA: ${CLP(sim.avg_ingreso_sin_iva_per_unit)}`}
+                    variant="outlined" />
+                  <Chip size="small"
+                    label={`Margen s/IVA por unidad: ${CLP(sim.avg_margen_sin_iva_per_unit)} (${sim.margen_pct}%)`}
+                    color={sim.margen_pct >= 25 ? 'success' : 'warning'} variant="outlined" />
+                </Box>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <SimCard
+                      icon={<BalanceIcon sx={{ color:'warning.main' }} />}
+                      title="Punto de Equilibrio"
+                      units={sim.breakeven_units}
+                      alreadyMet={sim.already_breakeven}
+                      impossible={sim.breakeven_units === null}
+                      product={sim.producto}
+                      extraRevenue={sim.breakeven_units != null && !sim.already_breakeven
+                        ? sim.breakeven_units * sim.avg_ingreso_sin_iva_per_unit : null}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <SimCard
+                      icon={<TrendingUpIcon sx={{ color:'primary.main' }} />}
+                      title="Meta EBITDA 25%"
+                      units={sim.target_25_units}
+                      alreadyMet={sim.already_25pct}
+                      impossible={sim.target_25_units === null}
+                      product={sim.producto}
+                      extraRevenue={sim.target_25_units != null && !sim.already_25pct
+                        ? sim.target_25_units * sim.avg_ingreso_sin_iva_per_unit : null}
+                    />
+                  </Grid>
+                </Grid>
+              </>
+            )}
+          </Paper>
+        )}
+
+        {/* ── Empty state ── */}
+        {!salesFile && !expensesFile && (
+          <Box sx={{ textAlign:'center', py:10, color:'text.secondary' }}>
+            <LocalPizzaIcon sx={{ fontSize:56, opacity:0.15, mb:2 }} />
+            <Typography variant="h6" sx={{ opacity:0.35, fontWeight:400 }}>
+              Carga tus archivos de ventas y gastos para comenzar
+            </Typography>
+            <Button startIcon={<HelpOutlineIcon />} onClick={() => setHelpOpen(true)}
+              sx={{ mt:2, color:'text.secondary' }} size="small">
+              Ver cómo funciona
+            </Button>
+          </Box>
+        )}
+
+      </Container>
+
+      {/* ── Modals ── */}
+      <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
+      <SalesTableModal open={salesTableOpen} onClose={() => setSalesTableOpen(false)}
+        data={salesTableData} month={selectedMonth} />
+      <ExpensesTableModal open={expensesTableOpen} onClose={() => setExpensesTableOpen(false)}
+        data={expensesTableData} month={selectedMonth} />
+
+    </ThemeProvider>
   );
 }
-
-export default App;
