@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
+import ChartsSection from './charts/ChartsSection';
 import {
   ThemeProvider, createTheme, CssBaseline,
   AppBar, Toolbar, Container, Box, Grid, Paper,
@@ -666,7 +667,7 @@ export default function App() {
           <Grid container spacing={2} sx={{ mb:3 }}>
 
             {/* Ingresos */}
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={12}>
               <Paper elevation={0} sx={{ p:3, height:'100%', border:'1px solid #1E3A5F' }}>
                 <Typography variant="subtitle2" sx={{ mb:2 }}>💰 Ingresos</Typography>
                 <KpiRow label="Total bruto (c/IVA)"    value={CLP(ing.total_ingreso)} />
@@ -816,6 +817,9 @@ export default function App() {
             </Button>
           </Box>
         )}
+
+        {/* ── Charts ── */}
+        <ChartsSection salesLoaded={!!salesFile} selectedMonth={selectedMonth} />
 
       </Container>
 

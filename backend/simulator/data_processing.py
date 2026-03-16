@@ -323,6 +323,78 @@ def get_expenses_table(
     return result.fillna("").to_dict(orient="records")
 
 
+def get_chart_data(df: pd.DataFrame) -> Dict[str, Any]:
+    """Compute all chart datasets from a cleaned sales dataframe."""
+    if df.empty:
+        return {}
+
+    df = df.copy()
+    df["hour"] = df["created_at"].dt.hour
+
+    # 1 & 2. Hourly: count of line items and revenue
+    hourly_count = df.groupby("hour").size().reindex(range(24), fill_value=0)
+    hourly_revenue = (
+        df.groupby("hour")["ingreso_sin_iva"]
+        .sum()
+        .reindex(range(24), fill_value=0)
+        .round(0)
+    )
+
+    # 3 & 4 & 5 & 6. Per-product aggregation
+    by_product = (
+        df.groupby("Producto")
+        .agg(cantidad=("Cantidad", "sum"), ingreso_sin_iva=("ingreso_sin_iva", "sum"))
+        .reset_index()
+    )
+    by_product["ingreso_sin_iva"] = by_product["ingreso_sin_iva"].round(0)
+
+    top10_qty = by_product.nlargest(10, "cantidad")[["Producto", "cantidad"]].to_dict(
+        orient="records"
+    )
+    top10_rev = by_product.nlargest(10, "ingreso_sin_iva")[
+        ["Producto", "ingreso_sin_iva"]
+    ].to_dict(orient="records")
+
+    # Pie: top 10 + "Otros"
+    top10_pie = by_product.nlargest(10, "cantidad")
+    others_qty = float(by_product["cantidad"].sum() - top10_pie["cantidad"].sum())
+    pie_labels = top10_pie["Producto"].tolist()
+    pie_values = [float(v) for v in top10_pie["cantidad"].tolist()]
+    if others_qty > 0:
+        pie_labels.append("Otros")
+        pie_values.append(others_qty)
+
+    # Scatter: all products (capped at 40 by revenue)
+    scatter = by_product.nlargest(40, "ingreso_sin_iva")[
+        ["Producto", "cantidad", "ingreso_sin_iva"]
+    ].to_dict(orient="records")
+
+    return {
+        "hourly": {
+            "labels": list(range(24)),
+            "count": [int(v) for v in hourly_count.tolist()],
+            "revenue": [float(v) for v in hourly_revenue.tolist()],
+        },
+        "top10_quantity": [
+            {"Producto": r["Producto"], "cantidad": float(r["cantidad"])}
+            for r in top10_qty
+        ],
+        "top10_revenue": [
+            {"Producto": r["Producto"], "ingreso_sin_iva": float(r["ingreso_sin_iva"])}
+            for r in top10_rev
+        ],
+        "pie_quantity": {"labels": pie_labels, "values": pie_values},
+        "scatter": [
+            {
+                "Producto": r["Producto"],
+                "cantidad": float(r["cantidad"]),
+                "ingreso_sin_iva": float(r["ingreso_sin_iva"]),
+            }
+            for r in scatter
+        ],
+    }
+
+
 def add_simulated_sales(df: pd.DataFrame, producto: str, cantidad: int) -> pd.DataFrame:
     """Add simulated sales to the dataframe.
 

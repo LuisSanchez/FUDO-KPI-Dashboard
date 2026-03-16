@@ -14,6 +14,7 @@ from .data_processing import (
     get_unique_products,
     get_sales_table,
     get_expenses_table,
+    get_chart_data,
 )
 
 
@@ -228,6 +229,22 @@ def expenses_table_data(request):
 
     month = request.query_params.get("month")
     return Response(get_expenses_table(_session_data["expenses_df"], month=month))
+
+
+@api_view(["GET"])
+def chart_data(request):
+    """Return all chart datasets for the selected month."""
+    if _session_data["sales_df"] is None:
+        return Response(
+            {"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    month = request.query_params.get("month")
+    df = _session_data["sales_df"].copy()
+    if month:
+        df = df[df["created_at"].dt.to_period("M").astype(str) == month]
+
+    return Response(get_chart_data(df))
 
 
 @api_view(["POST"])
