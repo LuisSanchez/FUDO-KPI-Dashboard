@@ -48,7 +48,9 @@ import TableChartIcon from "@mui/icons-material/TableChart";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import CloseIcon from "@mui/icons-material/Close";
 
-axios.defaults.baseURL = "http://localhost:8000";
+if (process.env.NODE_ENV === "development") {
+  axios.defaults.baseURL = "http://localhost:8000";
+}
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
 const theme = createTheme({

@@ -1,12 +1,18 @@
 SHELL := /bin/bash # Use bash syntax
 ARG := $(word 2, $(MAKECMDGOALS) )
+BACK_ENV ?= ./backend/pizza_simulator/.env
 
 black:
 	black .
 
-run:
+run-be:
 	python ./backend/manage.py runserver
+
+run-fe:
 	cd ./frontend && npm start
+
+run:
+	make run-be & make run-fe
 
 stop-local: # pkill -f python # sudo lsof -i tcp:8000 # sudo lsof -t -i tcp:8000 | xargs kill -9
 	taskkill /im python.exe /f
@@ -32,3 +38,19 @@ migrate:
 dev:
 	uv pip install -r ./backend/requirements.txt
 	cd ./frontend && npm install
+
+build:
+	docker build -t omp .
+
+stop-docker:
+	docker stop omp
+
+remove-docker:
+	docker rm omp
+
+run-docker:
+	docker run -d \
+	-p 8000:8000 \
+	--env-file $(BACK_ENV) \
+	--name omp \
+	omp

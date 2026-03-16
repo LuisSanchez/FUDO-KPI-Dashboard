@@ -1,0 +1,28 @@
+# Git and IDE
+.git
+.gitignore
+.cursor
+.vscode
+*.md
+!backend/**/README*
+
+# Frontend dev artifacts (we only need source for the build stage)
+frontend/node_modules
+frontend/build
+
+# Backend dev artifacts
+backend/__pycache__
+backend/**/__pycache__
+backend/*.sqlite3
+backend/media
+backend/staticfiles
+backend/lab
+
+# Env and local config
+.env
+.env.*
+*.local
+
+# Misc
+.DS_Store
+Makefile
