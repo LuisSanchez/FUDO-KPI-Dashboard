@@ -32,8 +32,7 @@ const SalesByHour = ({ hourly, height = 260 }) => {
           ...baseOptions.plugins.tooltip,
           callbacks: {
             title: ([item]) => `Hora: ${item.label}`,
-            label: ({ raw }) =>
-              ` ${raw.toLocaleString("es-CL")} líneas de venta`,
+            label: ({ raw }) => ` ${raw.toLocaleString("es-CL")} ventas`,
           },
         },
       },
@@ -43,7 +42,7 @@ const SalesByHour = ({ hourly, height = 260 }) => {
           ...baseOptions.scales.y,
           title: {
             display: true,
-            text: "Cantidad de líneas",
+            text: "Cantidad de ventas",
             color: COLORS.text,
             font: { size: 11 },
           },

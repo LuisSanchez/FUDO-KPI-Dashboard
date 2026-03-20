@@ -447,11 +447,10 @@ const HelpModal = ({ open, onClose }) => (
             ¿Qué hace esta app?
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Analiza la rentabilidad de tu tienda de pizza cargando los reportes
-            de ventas y gastos exportados desde FUDO. Calcula automáticamente
-            EBITDA, CMV, márgenes y simula cuántas unidades adicionales
-            necesitas vender para alcanzar el equilibrio o una meta de
-            rentabilidad del 25%.
+            Analiza la rentabilidad de tu tienda cargando los reportes de ventas
+            y gastos exportados desde FUDO. Calcula automáticamente EBITDA, CMV,
+            márgenes y simula cuántas unidades adicionales necesitas vender para
+            alcanzar el equilibrio o una meta de rentabilidad del 25%.
           </Typography>
         </Box>
 
@@ -943,26 +942,31 @@ const ProductPricesModal = ({ open, onClose, data, month }) => {
 
   const handleSort = (col) => {
     if (orderBy === col) setOrder((o) => (o === "asc" ? "desc" : "asc"));
-    else { setOrderBy(col); setOrder("desc"); }
+    else {
+      setOrderBy(col);
+      setOrder("desc");
+    }
   };
 
   const sorted = [...(data || [])].sort((a, b) => {
-    const av = a[orderBy], bv = b[orderBy];
-    if (typeof av === "string") return order === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+    const av = a[orderBy],
+      bv = b[orderBy];
+    if (typeof av === "string")
+      return order === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
     return order === "asc" ? av - bv : bv - av;
   });
 
   const cols = [
-    { id: "Producto",        label: "Producto",        numeric: false },
-    { id: "Categoría",       label: "Categoría",       numeric: false },
-    { id: "cantidad",        label: "Cant.",           numeric: true  },
-    { id: "avg_precio",      label: "Precio (c/IVA)",  numeric: true  },
-    { id: "avg_iva",         label: "IVA",             numeric: true  },
-    { id: "avg_precio_neto", label: "Precio neto",     numeric: true  },
-    { id: "avg_costo_neto",  label: "Costo neto",      numeric: true  },
-    { id: "pct_costo",       label: "% Costo",         numeric: true  },
-    { id: "margen_bruto",    label: "Margen bruto",    numeric: true  },
-    { id: "pct_margen_bruto",label: "% Margen",        numeric: true  },
+    { id: "Producto", label: "Producto", numeric: false },
+    { id: "Categoría", label: "Categoría", numeric: false },
+    { id: "cantidad", label: "Cant.", numeric: true },
+    { id: "avg_precio", label: "Precio (c/IVA)", numeric: true },
+    { id: "avg_iva", label: "IVA", numeric: true },
+    { id: "avg_precio_neto", label: "Precio neto", numeric: true },
+    { id: "avg_costo_neto", label: "Costo neto", numeric: true },
+    { id: "pct_costo", label: "% Costo", numeric: true },
+    { id: "margen_bruto", label: "Margen bruto", numeric: true },
+    { id: "pct_margen_bruto", label: "% Margen", numeric: true },
   ];
 
   const marginColor = (pct) =>
@@ -974,18 +978,36 @@ const ProductPricesModal = ({ open, onClose, data, month }) => {
       onClose={onClose}
       maxWidth="xl"
       fullWidth
-      PaperProps={{ sx: { bgcolor: "#1E293B", border: "1px solid #334155", maxHeight: "90vh" } }}
+      PaperProps={{
+        sx: {
+          bgcolor: "#1E293B",
+          border: "1px solid #334155",
+          maxHeight: "90vh",
+        },
+      }}
     >
-      <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <DialogTitle
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <PriceCheckIcon color="primary" />
           <Typography variant="h6">
             Precios y Márgenes por Producto
             {month && month !== "all" ? ` — ${fmtMonth(month)}` : ""}
           </Typography>
-          <Chip label={`${sorted.length} productos`} size="small" variant="outlined" />
+          <Chip
+            label={`${sorted.length} productos`}
+            size="small"
+            variant="outlined"
+          />
         </Box>
-        <IconButton onClick={onClose} size="small"><CloseIcon fontSize="small" /></IconButton>
+        <IconButton onClick={onClose} size="small">
+          <CloseIcon fontSize="small" />
+        </IconButton>
       </DialogTitle>
       <DialogContent sx={{ p: 0 }}>
         <TableContainer sx={{ maxHeight: "70vh" }}>
@@ -1009,16 +1031,32 @@ const ProductPricesModal = ({ open, onClose, data, month }) => {
             </TableHead>
             <TableBody>
               {sorted.map((row, i) => (
-                <TableRow key={i} hover sx={{ "&:hover": { bgcolor: "#ffffff08" } }}>
+                <TableRow
+                  key={i}
+                  hover
+                  sx={{ "&:hover": { bgcolor: "#ffffff08" } }}
+                >
                   <TableCell sx={{ fontWeight: 500 }}>{row.Producto}</TableCell>
                   <TableCell>
-                    <Chip label={row.Categoría} size="small" sx={{ fontSize: "0.65rem", height: 18 }} />
+                    <Chip
+                      label={row.Categoría}
+                      size="small"
+                      sx={{ fontSize: "0.65rem", height: 18 }}
+                    />
                   </TableCell>
-                  <TableCell align="right">{row.cantidad.toLocaleString("es-CL")}</TableCell>
+                  <TableCell align="right">
+                    {row.cantidad.toLocaleString("es-CL")}
+                  </TableCell>
                   <TableCell align="right">{CLP(row.avg_precio)}</TableCell>
-                  <TableCell align="right" sx={{ color: "text.secondary" }}>{CLP(row.avg_iva)}</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 600 }}>{CLP(row.avg_precio_neto)}</TableCell>
-                  <TableCell align="right" sx={{ color: "warning.main" }}>{CLP(row.avg_costo_neto)}</TableCell>
+                  <TableCell align="right" sx={{ color: "text.secondary" }}>
+                    {CLP(row.avg_iva)}
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600 }}>
+                    {CLP(row.avg_precio_neto)}
+                  </TableCell>
+                  <TableCell align="right" sx={{ color: "warning.main" }}>
+                    {CLP(row.avg_costo_neto)}
+                  </TableCell>
                   <TableCell align="right">
                     <Chip
                       label={`${row.pct_costo}%`}
@@ -1027,7 +1065,14 @@ const ProductPricesModal = ({ open, onClose, data, month }) => {
                       sx={{ fontSize: "0.65rem", height: 20 }}
                     />
                   </TableCell>
-                  <TableCell align="right" sx={{ color: row.margen_bruto >= 0 ? "success.main" : "error.main", fontWeight: 600 }}>
+                  <TableCell
+                    align="right"
+                    sx={{
+                      color:
+                        row.margen_bruto >= 0 ? "success.main" : "error.main",
+                      fontWeight: 600,
+                    }}
+                  >
                     {CLP(row.margen_bruto)}
                   </TableCell>
                   <TableCell align="right">
@@ -1040,7 +1085,16 @@ const ProductPricesModal = ({ open, onClose, data, month }) => {
                   </TableCell>
                   <TableCell>
                     {row.tiene_uber_eats && (
-                      <Chip label="Uber Eats" size="small" sx={{ fontSize: "0.6rem", height: 18, bgcolor: "#1C1C1C", color: "#06B6D4" }} />
+                      <Chip
+                        label="Uber Eats"
+                        size="small"
+                        sx={{
+                          fontSize: "0.6rem",
+                          height: 18,
+                          bgcolor: "#1C1C1C",
+                          color: "#06B6D4",
+                        }}
+                      />
                     )}
                   </TableCell>
                 </TableRow>
@@ -1074,7 +1128,7 @@ export default function App() {
   const [salesTableData, setSalesTableData] = useState([]);
   const [expensesTableData, setExpensesTableData] = useState([]);
   const [pricesTableData, setPricesTableData] = useState([]);
-  const [toast, setToast] = useState({ open: false, message: '' });
+  const [toast, setToast] = useState({ open: false, message: "" });
 
   const bothUploaded = !!(salesFile && expensesFile);
 
@@ -1236,7 +1290,7 @@ export default function App() {
     setSelectedProduct(null);
     setResults(null);
     setError(null);
-    setToast({ open: false, message: '' });
+    setToast({ open: false, message: "" });
   };
 
   const sim = results?.simulation;
@@ -1245,7 +1299,8 @@ export default function App() {
   const ebt = results?.ebitda;
   const isCurrentMonth =
     months.includes(CURRENT_MONTH) &&
-    (selectedMonth === CURRENT_MONTH || (selectedMonth === "all" && months.length === 1));
+    (selectedMonth === CURRENT_MONTH ||
+      (selectedMonth === "all" && months.length === 1));
 
   return (
     <ThemeProvider theme={theme}>
@@ -1601,14 +1656,15 @@ export default function App() {
         {bothUploaded && products.length > 0 && !isCurrentMonth && (
           <Paper elevation={0} sx={{ p: 3, border: "1px solid #1E293B" }}>
             <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-              🎯 {selectedMonth !== 'all' && selectedMonth !== CURRENT_MONTH
-                    ? 'Análisis Retrospectivo'
-                    : 'Simulador'}
+              🎯{" "}
+              {selectedMonth !== "all" && selectedMonth !== CURRENT_MONTH
+                ? "Análisis Retrospectivo"
+                : "Simulador"}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
-              {selectedMonth !== 'all' && selectedMonth !== CURRENT_MONTH
-                ? 'Selecciona un producto para ver cuántas unidades adicionales habrías necesitado vender para alcanzar el equilibrio o una rentabilidad del 25%.'
-                : 'Selecciona un producto para calcular cuántas unidades adicionales necesitas vender para alcanzar el equilibrio o una rentabilidad del 25%.'}
+              {selectedMonth !== "all" && selectedMonth !== CURRENT_MONTH
+                ? "Selecciona un producto para ver cuántas unidades adicionales habrías necesitado vender para alcanzar el equilibrio o una rentabilidad del 25%."
+                : "Selecciona un producto para calcular cuántas unidades adicionales necesitas vender para alcanzar el equilibrio o una rentabilidad del 25%."}
             </Typography>
             <Autocomplete
               options={products}
@@ -1741,7 +1797,7 @@ export default function App() {
         open={toast.open}
         autoHideDuration={8000}
         onClose={() => setToast((t) => ({ ...t, open: false }))}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
         <Alert
           severity="warning"
