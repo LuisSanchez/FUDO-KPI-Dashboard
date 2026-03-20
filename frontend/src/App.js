@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import axios from "axios";
 import ChartsSection from "./charts/ChartsSection";
+import ProjectionSimulator from "./components/ProjectionSimulator";
 import {
   ThemeProvider,
   createTheme,
@@ -20,6 +21,7 @@ import {
   ToggleButtonGroup,
   Chip,
   Alert,
+  Snackbar,
   LinearProgress,
   Divider,
   Tooltip,
@@ -47,6 +49,7 @@ import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import TableChartIcon from "@mui/icons-material/TableChart";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import CloseIcon from "@mui/icons-material/Close";
+import PriceCheckIcon from "@mui/icons-material/PriceCheck";
 
 if (process.env.NODE_ENV === "development") {
   axios.defaults.baseURL = "http://localhost:8000";
@@ -431,7 +434,7 @@ const HelpModal = ({ open, onClose }) => (
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <HelpOutlineIcon color="primary" />
-        <Typography variant="h6">Cómo funciona OMP Analytics</Typography>
+        <Typography variant="h6">Cómo funciona FUDO Analytics</Typography>
       </Box>
       <IconButton onClick={onClose} size="small">
         <CloseIcon fontSize="small" />
@@ -933,7 +936,126 @@ const ExpensesTableModal = ({ open, onClose, data, month }) => {
   );
 };
 
+// ── Product Prices Table Modal ────────────────────────────────────────────────
+const ProductPricesModal = ({ open, onClose, data, month }) => {
+  const [orderBy, setOrderBy] = useState("avg_precio_neto");
+  const [order, setOrder] = useState("desc");
+
+  const handleSort = (col) => {
+    if (orderBy === col) setOrder((o) => (o === "asc" ? "desc" : "asc"));
+    else { setOrderBy(col); setOrder("desc"); }
+  };
+
+  const sorted = [...(data || [])].sort((a, b) => {
+    const av = a[orderBy], bv = b[orderBy];
+    if (typeof av === "string") return order === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+    return order === "asc" ? av - bv : bv - av;
+  });
+
+  const cols = [
+    { id: "Producto",        label: "Producto",        numeric: false },
+    { id: "Categoría",       label: "Categoría",       numeric: false },
+    { id: "cantidad",        label: "Cant.",           numeric: true  },
+    { id: "avg_precio",      label: "Precio (c/IVA)",  numeric: true  },
+    { id: "avg_iva",         label: "IVA",             numeric: true  },
+    { id: "avg_precio_neto", label: "Precio neto",     numeric: true  },
+    { id: "avg_costo_neto",  label: "Costo neto",      numeric: true  },
+    { id: "pct_costo",       label: "% Costo",         numeric: true  },
+    { id: "margen_bruto",    label: "Margen bruto",    numeric: true  },
+    { id: "pct_margen_bruto",label: "% Margen",        numeric: true  },
+  ];
+
+  const marginColor = (pct) =>
+    pct >= 60 ? "success" : pct >= 40 ? "warning" : "error";
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="xl"
+      fullWidth
+      PaperProps={{ sx: { bgcolor: "#1E293B", border: "1px solid #334155", maxHeight: "90vh" } }}
+    >
+      <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <PriceCheckIcon color="primary" />
+          <Typography variant="h6">
+            Precios y Márgenes por Producto
+            {month && month !== "all" ? ` — ${fmtMonth(month)}` : ""}
+          </Typography>
+          <Chip label={`${sorted.length} productos`} size="small" variant="outlined" />
+        </Box>
+        <IconButton onClick={onClose} size="small"><CloseIcon fontSize="small" /></IconButton>
+      </DialogTitle>
+      <DialogContent sx={{ p: 0 }}>
+        <TableContainer sx={{ maxHeight: "70vh" }}>
+          <Table stickyHeader size="small">
+            <TableHead>
+              <TableRow>
+                {cols.map((c) => (
+                  <TableCell key={c.id} align={c.numeric ? "right" : "left"}>
+                    <TableSortLabel
+                      active={orderBy === c.id}
+                      direction={orderBy === c.id ? order : "desc"}
+                      onClick={() => handleSort(c.id)}
+                      hideSortIcon={false}
+                    >
+                      {c.label}
+                    </TableSortLabel>
+                  </TableCell>
+                ))}
+                <TableCell>Canales</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {sorted.map((row, i) => (
+                <TableRow key={i} hover sx={{ "&:hover": { bgcolor: "#ffffff08" } }}>
+                  <TableCell sx={{ fontWeight: 500 }}>{row.Producto}</TableCell>
+                  <TableCell>
+                    <Chip label={row.Categoría} size="small" sx={{ fontSize: "0.65rem", height: 18 }} />
+                  </TableCell>
+                  <TableCell align="right">{row.cantidad.toLocaleString("es-CL")}</TableCell>
+                  <TableCell align="right">{CLP(row.avg_precio)}</TableCell>
+                  <TableCell align="right" sx={{ color: "text.secondary" }}>{CLP(row.avg_iva)}</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600 }}>{CLP(row.avg_precio_neto)}</TableCell>
+                  <TableCell align="right" sx={{ color: "warning.main" }}>{CLP(row.avg_costo_neto)}</TableCell>
+                  <TableCell align="right">
+                    <Chip
+                      label={`${row.pct_costo}%`}
+                      size="small"
+                      color={cmvColor(row.pct_costo)}
+                      sx={{ fontSize: "0.65rem", height: 20 }}
+                    />
+                  </TableCell>
+                  <TableCell align="right" sx={{ color: row.margen_bruto >= 0 ? "success.main" : "error.main", fontWeight: 600 }}>
+                    {CLP(row.margen_bruto)}
+                  </TableCell>
+                  <TableCell align="right">
+                    <Chip
+                      label={`${row.pct_margen_bruto}%`}
+                      size="small"
+                      color={marginColor(row.pct_margen_bruto)}
+                      sx={{ fontSize: "0.65rem", height: 20 }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    {row.tiene_uber_eats && (
+                      <Chip label="Uber Eats" size="small" sx={{ fontSize: "0.6rem", height: 18, bgcolor: "#1C1C1C", color: "#06B6D4" }} />
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 // ── Main App ──────────────────────────────────────────────────────────────────
+const CURRENT_MONTH = new Date().toISOString().slice(0, 7); // e.g. "2026-03"
+
 export default function App() {
   const [salesFile, setSalesFile] = useState(null);
   const [expensesFile, setExpensesFile] = useState(null);
@@ -948,8 +1070,11 @@ export default function App() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [salesTableOpen, setSalesTableOpen] = useState(false);
   const [expensesTableOpen, setExpensesTableOpen] = useState(false);
+  const [pricesTableOpen, setPricesTableOpen] = useState(false);
   const [salesTableData, setSalesTableData] = useState([]);
   const [expensesTableData, setExpensesTableData] = useState([]);
+  const [pricesTableData, setPricesTableData] = useState([]);
+  const [toast, setToast] = useState({ open: false, message: '' });
 
   const bothUploaded = !!(salesFile && expensesFile);
 
@@ -997,14 +1122,16 @@ export default function App() {
         setMonths(res.data.months || []);
         setSelectedMonth("all");
         setSelectedProduct(null);
-        if (expensesFile) calculate("all", null);
+        // Backend clears expenses on sales re-upload — mirror that in UI
+        setExpensesFile(null);
+        setResults(null);
       } catch (err) {
         setError(err.response?.data?.error || "Error al cargar ventas");
       } finally {
         setLoading(false);
       }
     },
-    [expensesFile, calculate],
+    [calculate],
   );
 
   const onExpensesDrop = useCallback(
@@ -1022,7 +1149,16 @@ export default function App() {
         setExpensesFile(file.name);
         if (salesFile) calculate(selectedMonth, selectedProduct);
       } catch (err) {
-        setError(err.response?.data?.error || "Error al cargar gastos");
+        if (err.response?.data?.error === "date_mismatch") {
+          const { sales_months, expense_months } = err.response.data;
+          const fmt = (ms) => ms.map(fmtMonth).join(", ");
+          setToast({
+            open: true,
+            message: `El archivo de gastos (${fmt(expense_months)}) no corresponde al período de ventas (${fmt(sales_months)}). Carga el archivo correcto.`,
+          });
+        } else {
+          setError(err.response?.data?.error || "Error al cargar gastos");
+        }
       } finally {
         setLoading(false);
       }
@@ -1073,6 +1209,20 @@ export default function App() {
     }
   };
 
+  const openPricesTable = async () => {
+    try {
+      const params =
+        selectedMonth && selectedMonth !== "all"
+          ? `?month=${selectedMonth}`
+          : "";
+      const res = await axios.get(`/api/data/product-prices/${params}`);
+      setPricesTableData(res.data);
+      setPricesTableOpen(true);
+    } catch (err) {
+      setError("Error al cargar tabla de precios");
+    }
+  };
+
   // ── Reset ──────────────────────────────────────────────────────────────────
   const handleReset = async () => {
     try {
@@ -1086,12 +1236,16 @@ export default function App() {
     setSelectedProduct(null);
     setResults(null);
     setError(null);
+    setToast({ open: false, message: '' });
   };
 
   const sim = results?.simulation;
   const ing = results?.ingresos;
   const gas = results?.gastos;
   const ebt = results?.ebitda;
+  const isCurrentMonth =
+    months.includes(CURRENT_MONTH) &&
+    (selectedMonth === CURRENT_MONTH || (selectedMonth === "all" && months.length === 1));
 
   return (
     <ThemeProvider theme={theme}>
@@ -1115,10 +1269,10 @@ export default function App() {
           <LocalPizzaIcon sx={{ color: "primary.main", fontSize: 28 }} />
           <Box sx={{ flexGrow: 1 }}>
             <Typography variant="h6" fontWeight={700} sx={{ lineHeight: 1.2 }}>
-              OMP Analytics
+              FUDO Analytics
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Pizza Finance Dashboard
+              Food Finance Dashboard
             </Typography>
           </Box>
           {bothUploaded && (
@@ -1147,6 +1301,19 @@ export default function App() {
                   }}
                 >
                   Gastos
+                </Button>
+              </Tooltip>
+              <Tooltip title="Ver precios y márgenes por producto">
+                <Button
+                  size="small"
+                  startIcon={<PriceCheckIcon />}
+                  onClick={openPricesTable}
+                  sx={{
+                    color: "text.secondary",
+                    "&:hover": { color: "text.primary" },
+                  }}
+                >
+                  Precios
                 </Button>
               </Tooltip>
             </>
@@ -1431,14 +1598,17 @@ export default function App() {
         )}
 
         {/* ── Simulator ── */}
-        {bothUploaded && products.length > 0 && (
+        {bothUploaded && products.length > 0 && !isCurrentMonth && (
           <Paper elevation={0} sx={{ p: 3, border: "1px solid #1E293B" }}>
             <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-              🎯 Simulador
+              🎯 {selectedMonth !== 'all' && selectedMonth !== CURRENT_MONTH
+                    ? 'Análisis Retrospectivo'
+                    : 'Simulador'}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
-              Selecciona un producto para calcular cuántas unidades adicionales
-              necesitas vender
+              {selectedMonth !== 'all' && selectedMonth !== CURRENT_MONTH
+                ? 'Selecciona un producto para ver cuántas unidades adicionales habrías necesitado vender para alcanzar el equilibrio o una rentabilidad del 25%.'
+                : 'Selecciona un producto para calcular cuántas unidades adicionales necesitas vender para alcanzar el equilibrio o una rentabilidad del 25%.'}
             </Typography>
             <Autocomplete
               options={products}
@@ -1529,6 +1699,15 @@ export default function App() {
           </Box>
         )}
 
+        {/* ── Projection Simulator (current month only) ── */}
+        <ProjectionSimulator
+          salesLoaded={!!salesFile}
+          expensesLoaded={!!expensesFile}
+          selectedMonth={selectedMonth}
+          isCurrentMonth={isCurrentMonth}
+          products={products}
+        />
+
         {/* ── Charts ── */}
         <ChartsSection
           salesLoaded={!!salesFile}
@@ -1550,6 +1729,29 @@ export default function App() {
         data={expensesTableData}
         month={selectedMonth}
       />
+      <ProductPricesModal
+        open={pricesTableOpen}
+        onClose={() => setPricesTableOpen(false)}
+        data={pricesTableData}
+        month={selectedMonth}
+      />
+
+      {/* ── Toast ── */}
+      <Snackbar
+        open={toast.open}
+        autoHideDuration={8000}
+        onClose={() => setToast((t) => ({ ...t, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          severity="warning"
+          variant="filled"
+          onClose={() => setToast((t) => ({ ...t, open: false }))}
+          sx={{ maxWidth: 520 }}
+        >
+          {toast.message}
+        </Alert>
+      </Snackbar>
     </ThemeProvider>
   );
 }

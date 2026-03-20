@@ -41,14 +41,15 @@ dev:
 
 build:
 	docker build -t omp .
+	make up
 
-stop-docker:
+down:
 	docker stop omp
 
-remove-docker:
+remove:
 	docker rm omp
 
-run-docker:
+up:
 	docker run -d \
 	-p 8000:8000 \
 	--env-file $(BACK_ENV) \

@@ -15,6 +15,7 @@ from .data_processing import (
     get_sales_table,
     get_expenses_table,
     get_chart_data,
+    get_product_prices_table,
 )
 
 
@@ -23,6 +24,7 @@ _session_data = {
     "sales_df": None,
     "expenses_df": None,
     "products": [],
+    "sales_months": [],  # "YYYY-MM" strings derived from the sales file
 }
 
 
@@ -67,10 +69,6 @@ def upload_sales(request):
         # Clean the data
         df_clean = sales_clean_up_data(df=df)
 
-        # Store in session
-        _session_data["sales_df"] = df_clean
-        _session_data["products"] = get_unique_products(df=df_clean)
-
         months = sorted(
             df_clean["created_at"]
             .dt.to_period("M")
@@ -79,6 +77,12 @@ def upload_sales(request):
             .unique()
             .tolist()
         )
+
+        # Store in session (clear stale expenses when sales are replaced)
+        _session_data["sales_df"] = df_clean
+        _session_data["products"] = get_unique_products(df=df_clean)
+        _session_data["sales_months"] = months
+        _session_data["expenses_df"] = None  # require re-upload of expenses
 
         return Response(
             {
@@ -114,7 +118,7 @@ def upload_expenses(request):
         )
 
     try:
-        # Read the Excel file
+        # Read the Excel file — sheet "Gastos", skip metadata rows
         df = pd.read_excel(io.BytesIO(file.read()), sheet_name="Gastos", skiprows=3)
 
         # Validate columns
@@ -130,12 +134,33 @@ def upload_expenses(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Derive months present in this expenses file from the "Fecha" column
+        df["Fecha"] = pd.to_datetime(df["Fecha"], errors="coerce")
+        expense_months = sorted(
+            df["Fecha"].dropna().dt.to_period("M").astype(str).unique().tolist()
+        )
+
+        # Validate against already-uploaded sales months
+        sales_months = _session_data.get("sales_months", [])
+        if sales_months:
+            overlap = set(expense_months) & set(sales_months)
+            if not overlap:
+                return Response(
+                    {
+                        "error": "date_mismatch",
+                        "sales_months": sales_months,
+                        "expense_months": expense_months,
+                    },
+                    status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                )
+
         # Store in session
         _session_data["expenses_df"] = df
 
         return Response(
             {
                 "message": "Expenses file uploaded successfully",
+                "expense_months": expense_months,
                 "total_rows": len(df),
             }
         )
@@ -247,11 +272,28 @@ def chart_data(request):
     return Response(get_chart_data(df))
 
 
+@api_view(["GET"])
+def product_prices_data(request):
+    """Return per-product average pricing and raw margin breakdown."""
+    if _session_data["sales_df"] is None:
+        return Response(
+            {"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    month = request.query_params.get("month")
+    df = _session_data["sales_df"].copy()
+    if month:
+        df = df[df["created_at"].dt.to_period("M").astype(str) == month]
+
+    return Response(get_product_prices_table(df))
+
+
 @api_view(["POST"])
 def reset_data(request):
     """Reset all uploaded data."""
     _session_data["sales_df"] = None
     _session_data["expenses_df"] = None
     _session_data["products"] = []
+    _session_data["sales_months"] = []
 
     return Response({"message": "Data reset successfully"})

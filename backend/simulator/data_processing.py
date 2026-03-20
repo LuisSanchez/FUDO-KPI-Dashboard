@@ -150,16 +150,31 @@ def kpi_calculations(
                         None  # product margin % too low to ever reach 25% EBITDA
                     )
 
+            current_units = int(product_df["Cantidad"].sum())
+            breakeven_units_int = (
+                int(breakeven_units) if breakeven_units is not None else None
+            )
+            target_25_units_int = (
+                int(target_25_units) if target_25_units is not None else None
+            )
+
             simulation = {
                 "producto": producto,
                 "avg_ingreso_sin_iva_per_unit": r(avg_ingreso_per_unit),
                 "avg_margen_sin_iva_per_unit": r(avg_margen_per_unit),
                 "margen_pct": margen_pct,
-                "breakeven_units": (
-                    int(breakeven_units) if breakeven_units is not None else None
+                "current_units": current_units,
+                "breakeven_units": breakeven_units_int,
+                "target_25_units": target_25_units_int,
+                "total_for_breakeven": (
+                    current_units + breakeven_units_int
+                    if breakeven_units_int is not None
+                    else None
                 ),
-                "target_25_units": (
-                    int(target_25_units) if target_25_units is not None else None
+                "total_for_25pct": (
+                    current_units + target_25_units_int
+                    if target_25_units_int is not None
+                    else None
                 ),
                 "already_breakeven": bool(already_breakeven),
                 "already_25pct": bool(already_25pct),
@@ -393,6 +408,73 @@ def get_chart_data(df: pd.DataFrame) -> Dict[str, Any]:
             for r in scatter
         ],
     }
+
+
+def get_product_prices_table(df: pd.DataFrame) -> List[Dict]:
+    """Compute per-product average pricing and raw margin breakdown."""
+    if df.empty:
+        return []
+
+    df = df.copy()
+    df["costo_ingredientes_per_unit_neto"] = df["costo_ingredientes_sin_iva"] / df[
+        "Cantidad"
+    ].replace(0, 1)
+    df["precio_neto_per_unit"] = df["precio_unitario"] / 1.19
+
+    grouped = (
+        df.groupby(["Producto", "Categoría"])
+        .agg(
+            cantidad=("Cantidad", "sum"),
+            avg_precio=("precio_unitario", "mean"),
+            avg_precio_neto=("precio_neto_per_unit", "mean"),
+            avg_costo_neto=("costo_ingredientes_per_unit_neto", "mean"),
+            tiene_uber_eats=("Creada por", lambda x: bool((x == "uber_eats").any())),
+        )
+        .reset_index()
+    )
+
+    grouped["avg_iva"] = grouped["avg_precio"] - grouped["avg_precio_neto"]
+    grouped["margen_bruto"] = grouped["avg_precio_neto"] - grouped["avg_costo_neto"]
+    grouped["pct_costo"] = (
+        (grouped["avg_costo_neto"] / grouped["avg_precio_neto"] * 100)
+        .round(1)
+        .fillna(0)
+        .replace([np.inf, -np.inf], 0)
+    )
+    grouped["pct_margen_bruto"] = (
+        (grouped["margen_bruto"] / grouped["avg_precio_neto"] * 100)
+        .round(1)
+        .fillna(0)
+        .replace([np.inf, -np.inf], 0)
+    )
+
+    for col in [
+        "avg_precio",
+        "avg_precio_neto",
+        "avg_iva",
+        "avg_costo_neto",
+        "margen_bruto",
+    ]:
+        grouped[col] = grouped[col].round(0)
+
+    grouped = grouped.sort_values("avg_precio_neto", ascending=False)
+
+    return [
+        {
+            "Producto": row["Producto"],
+            "Categoría": row["Categoría"],
+            "cantidad": int(row["cantidad"]),
+            "avg_precio": float(row["avg_precio"]),
+            "avg_iva": float(row["avg_iva"]),
+            "avg_precio_neto": float(row["avg_precio_neto"]),
+            "avg_costo_neto": float(row["avg_costo_neto"]),
+            "pct_costo": float(row["pct_costo"]),
+            "margen_bruto": float(row["margen_bruto"]),
+            "pct_margen_bruto": float(row["pct_margen_bruto"]),
+            "tiene_uber_eats": bool(row["tiene_uber_eats"]),
+        }
+        for _, row in grouped.iterrows()
+    ]
 
 
 def add_simulated_sales(df: pd.DataFrame, producto: str, cantidad: int) -> pd.DataFrame:
