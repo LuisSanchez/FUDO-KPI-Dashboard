@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import arrow
 import io
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -152,6 +153,12 @@ def upload_expenses(request):
                         "expense_months": expense_months,
                     },
                     status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                )
+            else:
+                # filter expenses to only include months present in sales
+                df = df[df["Fecha"].dt.to_period("M").astype(str).isin(overlap)]
+                expense_months = sorted(
+                    df["Fecha"].dropna().dt.to_period("M").astype(str).unique().tolist()
                 )
 
         # Store in session
