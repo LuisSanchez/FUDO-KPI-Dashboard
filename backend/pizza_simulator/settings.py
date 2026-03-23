@@ -126,6 +126,12 @@ if FRONTEND_BUILD_DIR.exists():
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Session settings
+SESSION_ENGINE = "django.contrib.sessions.backends.db"
+SESSION_COOKIE_AGE = 86400  # 24 hours
+SESSION_COOKIE_SAMESITE = "Lax"
+SESSION_SAVE_EVERY_REQUEST = False
+
 # CORS settings
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",

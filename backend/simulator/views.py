@@ -1,12 +1,12 @@
-import pandas as pd
-import numpy as np
-import arrow
 import io
+import pickle
+
+import pandas as pd
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-from django.core.cache import cache
 
+from .models import UserSessionData
 from .data_processing import (
     sales_clean_up_data,
     kpi_calculations,
@@ -20,13 +20,34 @@ from .data_processing import (
 )
 
 
-# In-memory storage for uploaded data (in production, use a proper database)
-_session_data = {
-    "sales_df": None,
-    "expenses_df": None,
-    "products": [],
-    "sales_months": [],  # "YYYY-MM" strings derived from the sales file
-}
+# ── Session helpers ────────────────────────────────────────────────────────────
+
+
+def _get_store(request) -> UserSessionData:
+    """Return (or create) the UserSessionData row for the current browser session."""
+    if not request.session.session_key:
+        request.session.create()
+    store, _ = UserSessionData.objects.get_or_create(
+        session_key=request.session.session_key
+    )
+    return store
+
+
+def _load_df(blob) -> pd.DataFrame | None:
+    """Deserialize a pickled DataFrame from a BinaryField value."""
+    if blob is None:
+        return None
+    return pickle.loads(bytes(blob))
+
+
+def _dump_df(df: pd.DataFrame | None) -> bytes | None:
+    """Serialize a DataFrame to bytes for BinaryField storage."""
+    if df is None:
+        return None
+    return pickle.dumps(df)
+
+
+# ── Endpoints ─────────────────────────────────────────────────────────────────
 
 
 @api_view(["POST"])
@@ -39,7 +60,6 @@ def upload_sales(request):
 
     file = request.FILES["file"]
 
-    # Check file extension
     if not (file.name.endswith(".xlsx") or file.name.endswith(".xls")):
         return Response(
             {"error": "File must be an Excel file (.xlsx or .xls)"},
@@ -47,16 +67,12 @@ def upload_sales(request):
         )
 
     try:
-        # Read the Excel file
         df = pd.read_excel(io.BytesIO(file.read()), sheet_name="Adiciones")
 
-        # Filter cancelled line items before any processing
         if "Cancelada" in df.columns:
             df = df[df["Cancelada"] == "No"].copy()
 
-        # Validate columns
         is_valid, missing_columns = validate_sales_columns(df)
-
         if not is_valid:
             return Response(
                 {
@@ -67,9 +83,7 @@ def upload_sales(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Clean the data
         df_clean = sales_clean_up_data(df=df)
-
         months = sorted(
             df_clean["created_at"]
             .dt.to_period("M")
@@ -78,17 +92,19 @@ def upload_sales(request):
             .unique()
             .tolist()
         )
+        products = get_unique_products(df=df_clean)
 
-        # Store in session (clear stale expenses when sales are replaced)
-        _session_data["sales_df"] = df_clean
-        _session_data["products"] = get_unique_products(df=df_clean)
-        _session_data["sales_months"] = months
-        _session_data["expenses_df"] = None  # require re-upload of expenses
+        store = _get_store(request)
+        store.sales_df_pickle = _dump_df(df_clean)
+        store.expenses_df_pickle = None  # require re-upload of expenses
+        store.products = products
+        store.sales_months = months
+        store.save()
 
         return Response(
             {
                 "message": "Sales file uploaded successfully",
-                "products": _session_data["products"],
+                "products": products,
                 "months": months,
                 "total_rows": len(df_clean),
             }
@@ -111,7 +127,6 @@ def upload_expenses(request):
 
     file = request.FILES["file"]
 
-    # Check file extension
     if not (file.name.endswith(".xlsx") or file.name.endswith(".xls")):
         return Response(
             {"error": "File must be an Excel file (.xlsx or .xls)"},
@@ -119,12 +134,9 @@ def upload_expenses(request):
         )
 
     try:
-        # Read the Excel file — sheet "Gastos", skip metadata rows
         df = pd.read_excel(io.BytesIO(file.read()), sheet_name="Gastos", skiprows=3)
 
-        # Validate columns
         is_valid, missing_columns = validate_expenses_columns(df)
-
         if not is_valid:
             return Response(
                 {
@@ -135,14 +147,14 @@ def upload_expenses(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Derive months present in this expenses file from the "Fecha" column
         df["Fecha"] = pd.to_datetime(df["Fecha"], errors="coerce")
         expense_months = sorted(
             df["Fecha"].dropna().dt.to_period("M").astype(str).unique().tolist()
         )
 
-        # Validate against already-uploaded sales months
-        sales_months = _session_data.get("sales_months", [])
+        store = _get_store(request)
+        sales_months = store.sales_months or []
+
         if sales_months:
             overlap = set(expense_months) & set(sales_months)
             if not overlap:
@@ -154,15 +166,13 @@ def upload_expenses(request):
                     },
                     status=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 )
-            else:
-                # filter expenses to only include months present in sales
-                df = df[df["Fecha"].dt.to_period("M").astype(str).isin(overlap)]
-                expense_months = sorted(
-                    df["Fecha"].dropna().dt.to_period("M").astype(str).unique().tolist()
-                )
+            df = df[df["Fecha"].dt.to_period("M").astype(str).isin(overlap)]
+            expense_months = sorted(
+                df["Fecha"].dropna().dt.to_period("M").astype(str).unique().tolist()
+            )
 
-        # Store in session
-        _session_data["expenses_df"] = df
+        store.expenses_df_pickle = _dump_df(df)
+        store.save()
 
         return Response(
             {
@@ -182,47 +192,41 @@ def upload_expenses(request):
 @api_view(["GET"])
 def get_products(request):
     """Get list of available products from uploaded sales data."""
-    if _session_data["sales_df"] is None:
+    store = _get_store(request)
+    if store.sales_df_pickle is None:
         return Response(
             {"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST
         )
-
-    return Response(
-        {
-            "products": _session_data["products"],
-        }
-    )
+    return Response({"products": store.products})
 
 
 @api_view(["POST"])
 def calculate(request):
-    """Calculate KPIs with simulated sales."""
-    if _session_data["sales_df"] is None:
+    """Calculate KPIs with optional product/month filter."""
+    store = _get_store(request)
+    if store.sales_df_pickle is None:
         return Response(
             {"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST
         )
-
-    if _session_data["expenses_df"] is None:
+    if store.expenses_df_pickle is None:
         return Response(
             {"error": "No expenses data uploaded yet"},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    producto = request.data.get("producto")  # optional
-    month = request.data.get("month")  # e.g. "2026-01", optional
+    producto = request.data.get("producto")
+    month = request.data.get("month")
 
     try:
-        df_sales = _session_data["sales_df"].copy()
-        df_expenses = _session_data["expenses_df"].copy()
+        df_sales = _load_df(store.sales_df_pickle).copy()
+        df_expenses = _load_df(store.expenses_df_pickle).copy()
 
-        # Filter sales by selected month if provided
         if month:
             df_sales = df_sales[
                 df_sales["created_at"].dt.to_period("M").astype(str) == month
             ]
 
         results = kpi_calculations(df_sales, df_expenses, producto=producto)
-
         return Response(results)
 
     except ValueError as e:
@@ -237,13 +241,14 @@ def calculate(request):
 @api_view(["GET"])
 def sales_table_data(request):
     """Return per-product sales aggregation for table display."""
-    if _session_data["sales_df"] is None:
+    store = _get_store(request)
+    if store.sales_df_pickle is None:
         return Response(
             {"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST
         )
 
     month = request.query_params.get("month")
-    df = _session_data["sales_df"].copy()
+    df = _load_df(store.sales_df_pickle).copy()
     if month:
         df = df[df["created_at"].dt.to_period("M").astype(str) == month]
 
@@ -253,26 +258,28 @@ def sales_table_data(request):
 @api_view(["GET"])
 def expenses_table_data(request):
     """Return individual expense rows for table display."""
-    if _session_data["expenses_df"] is None:
+    store = _get_store(request)
+    if store.expenses_df_pickle is None:
         return Response(
             {"error": "No expenses data uploaded yet"},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
     month = request.query_params.get("month")
-    return Response(get_expenses_table(_session_data["expenses_df"], month=month))
+    return Response(get_expenses_table(_load_df(store.expenses_df_pickle), month=month))
 
 
 @api_view(["GET"])
 def chart_data(request):
     """Return all chart datasets for the selected month."""
-    if _session_data["sales_df"] is None:
+    store = _get_store(request)
+    if store.sales_df_pickle is None:
         return Response(
             {"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST
         )
 
     month = request.query_params.get("month")
-    df = _session_data["sales_df"].copy()
+    df = _load_df(store.sales_df_pickle).copy()
     if month:
         df = df[df["created_at"].dt.to_period("M").astype(str) == month]
 
@@ -282,13 +289,14 @@ def chart_data(request):
 @api_view(["GET"])
 def product_prices_data(request):
     """Return per-product average pricing and raw margin breakdown."""
-    if _session_data["sales_df"] is None:
+    store = _get_store(request)
+    if store.sales_df_pickle is None:
         return Response(
             {"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST
         )
 
     month = request.query_params.get("month")
-    df = _session_data["sales_df"].copy()
+    df = _load_df(store.sales_df_pickle).copy()
     if month:
         df = df[df["created_at"].dt.to_period("M").astype(str) == month]
 
@@ -297,10 +305,11 @@ def product_prices_data(request):
 
 @api_view(["POST"])
 def reset_data(request):
-    """Reset all uploaded data."""
-    _session_data["sales_df"] = None
-    _session_data["expenses_df"] = None
-    _session_data["products"] = []
-    _session_data["sales_months"] = []
-
+    """Reset all uploaded data for this session."""
+    store = _get_store(request)
+    store.sales_df_pickle = None
+    store.expenses_df_pickle = None
+    store.products = []
+    store.sales_months = []
+    store.save()
     return Response({"message": "Data reset successfully"})

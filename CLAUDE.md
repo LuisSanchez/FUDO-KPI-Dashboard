@@ -35,7 +35,8 @@ python manage.py runserver   # Start Django server (port 8000)
 
 ### Backend (`backend/`)
 
-- **`simulator/views.py`** — API endpoints. Uses an in-memory dict `_session_data` to store uploaded file data between requests (no DB persistence; resets on server restart).
+- **`simulator/views.py`** — API endpoints. Uses `UserSessionData` (SQLite) keyed by Django session cookie to store per-user uploaded file data. DataFrames are pickled into `BinaryField` columns. Sessions expire after 24 h (`SESSION_COOKIE_AGE`).
+- **`simulator/models.py`** — `UserSessionData` model: `session_key`, `sales_df_pickle`, `expenses_df_pickle`, `products` (JSONField), `sales_months` (JSONField), `updated_at`.
 - **`simulator/data_processing.py`** — All business logic: data cleaning, KPI/EBITDA calculation, file validation, chart data aggregation.
 - **`pizza_simulator/settings.py`** — CORS allows all origins; SQLite for dev.
 
