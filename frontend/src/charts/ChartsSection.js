@@ -24,6 +24,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import "./chartConfig";
 
 import SalesByDay from "./SalesByDay";
+import SalesByWeekday from "./SalesByWeekday";
 import SalesByHour from "./SalesByHour";
 import RevenueByHour from "./RevenueByHour";
 import TopProductsByQuantity from "./TopProductsByQuantity";
@@ -143,6 +144,31 @@ const ChartsSection = ({ salesLoaded, selectedMonth }) => {
                 modal: (
                   <SalesByDay
                     daily={chartData.daily}
+                    showRevenue
+                    height={MODAL_CHART_HEIGHT}
+                  />
+                ),
+              },
+              {
+                key: "salesByWeekday",
+                title: "Ventas Acumuladas por Día de la Semana",
+                card: <SalesByWeekday weekday={chartData.weekday} />,
+                modal: (
+                  <SalesByWeekday
+                    weekday={chartData.weekday}
+                    height={MODAL_CHART_HEIGHT}
+                  />
+                ),
+              },
+              {
+                key: "revenueByWeekday",
+                title: "Ingresos Acumulados por Día de la Semana (sin IVA)",
+                card: (
+                  <SalesByWeekday weekday={chartData.weekday} showRevenue />
+                ),
+                modal: (
+                  <SalesByWeekday
+                    weekday={chartData.weekday}
                     showRevenue
                     height={MODAL_CHART_HEIGHT}
                   />

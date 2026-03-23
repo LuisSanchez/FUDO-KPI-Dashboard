@@ -33,10 +33,10 @@ def _get_store(request) -> UserSessionData:
     return store
 
 
-def _load_df(blob) -> pd.DataFrame | None:
+def _load_df(blob) -> pd.DataFrame:
     """Deserialize a pickled DataFrame from a BinaryField value."""
     if blob is None:
-        return None
+        return pd.DataFrame()
     return pickle.loads(bytes(blob))
 
 

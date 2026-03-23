@@ -346,6 +346,7 @@ def get_chart_data(df: pd.DataFrame) -> Dict[str, Any]:
     df = df.copy()
     df["hour"] = df["created_at"].dt.hour
     df["day"] = df["created_at"].dt.day
+    df["weekday"] = df["created_at"].dt.dayofweek  # 0=Mon … 6=Sun
 
     # 1 & 2. Hourly: count of line items and revenue
     hourly_count = df.groupby("hour").size().reindex(range(24), fill_value=0)
@@ -368,6 +369,15 @@ def get_chart_data(df: pd.DataFrame) -> Dict[str, Any]:
     # Trim trailing zeros (days beyond the last active day in the data)
     last_active_day = int(df["day"].max()) if not df.empty else 1
     active_days = list(range(1, last_active_day + 1))
+
+    # Weekday: accumulated count and revenue per day-of-week (Mon–Sun)
+    weekday_count = df.groupby("weekday").size().reindex(range(7), fill_value=0)
+    weekday_revenue = (
+        df.groupby("weekday")["ingreso_sin_iva"]
+        .sum()
+        .reindex(range(7), fill_value=0)
+        .round(0)
+    )
 
     # 3 & 4 & 5 & 6. Per-product aggregation
     by_product = (
@@ -408,6 +418,11 @@ def get_chart_data(df: pd.DataFrame) -> Dict[str, Any]:
             "labels": active_days,
             "count": [int(daily_count[d]) for d in active_days],
             "revenue": [float(daily_revenue[d]) for d in active_days],
+        },
+        "weekday": {
+            "labels": ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"],
+            "count": [int(weekday_count[d]) for d in range(7)],
+            "revenue": [float(weekday_revenue[d]) for d in range(7)],
         },
         "top10_quantity": [
             {"Producto": r["Producto"], "cantidad": float(r["cantidad"])}
