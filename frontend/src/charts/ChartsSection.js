@@ -23,6 +23,7 @@ import CloseIcon from "@mui/icons-material/Close";
 // Central registration (must run before any chart renders)
 import "./chartConfig";
 
+import SalesByDay from "./SalesByDay";
 import SalesByHour from "./SalesByHour";
 import RevenueByHour from "./RevenueByHour";
 import TopProductsByQuantity from "./TopProductsByQuantity";
@@ -124,6 +125,29 @@ const ChartsSection = ({ salesLoaded, selectedMonth }) => {
             }}
           >
             {[
+              {
+                key: "salesByDay",
+                title: "Ventas por Día del Mes",
+                card: <SalesByDay daily={chartData.daily} />,
+                modal: (
+                  <SalesByDay
+                    daily={chartData.daily}
+                    height={MODAL_CHART_HEIGHT}
+                  />
+                ),
+              },
+              {
+                key: "revenueByDay",
+                title: "Ingresos por Día del Mes (sin IVA)",
+                card: <SalesByDay daily={chartData.daily} showRevenue />,
+                modal: (
+                  <SalesByDay
+                    daily={chartData.daily}
+                    showRevenue
+                    height={MODAL_CHART_HEIGHT}
+                  />
+                ),
+              },
               {
                 key: "salesByHour",
                 title: "Ventas por Hora del Día",

@@ -345,6 +345,7 @@ def get_chart_data(df: pd.DataFrame) -> Dict[str, Any]:
 
     df = df.copy()
     df["hour"] = df["created_at"].dt.hour
+    df["day"] = df["created_at"].dt.day
 
     # 1 & 2. Hourly: count of line items and revenue
     hourly_count = df.groupby("hour").size().reindex(range(24), fill_value=0)
@@ -354,6 +355,19 @@ def get_chart_data(df: pd.DataFrame) -> Dict[str, Any]:
         .reindex(range(24), fill_value=0)
         .round(0)
     )
+
+    # Daily: count of line items and revenue per calendar day
+    all_days = range(1, 32)
+    daily_count = df.groupby("day").size().reindex(all_days, fill_value=0)
+    daily_revenue = (
+        df.groupby("day")["ingreso_sin_iva"]
+        .sum()
+        .reindex(all_days, fill_value=0)
+        .round(0)
+    )
+    # Trim trailing zeros (days beyond the last active day in the data)
+    last_active_day = int(df["day"].max()) if not df.empty else 1
+    active_days = list(range(1, last_active_day + 1))
 
     # 3 & 4 & 5 & 6. Per-product aggregation
     by_product = (
@@ -389,6 +403,11 @@ def get_chart_data(df: pd.DataFrame) -> Dict[str, Any]:
             "labels": list(range(24)),
             "count": [int(v) for v in hourly_count.tolist()],
             "revenue": [float(v) for v in hourly_revenue.tolist()],
+        },
+        "daily": {
+            "labels": active_days,
+            "count": [int(daily_count[d]) for d in active_days],
+            "revenue": [float(daily_revenue[d]) for d in active_days],
         },
         "top10_quantity": [
             {"Producto": r["Producto"], "cantidad": float(r["cantidad"])}
