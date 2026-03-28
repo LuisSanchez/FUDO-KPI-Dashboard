@@ -24,3 +24,89 @@ body {
 .dropzone-root:hover {
   transform: translateY(-2px);
 }
+
+/* ── Driver.js tour — dark theme override ──────────────────────────────────── */
+.driver-popover {
+  background-color: #1e293b !important;
+  border: 1px solid #334155 !important;
+  border-radius: 12px !important;
+  color: #f1f5f9 !important;
+  max-width: 340px !important;
+}
+.driver-popover-title {
+  font-family: "Inter", sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: #f97316 !important;
+  margin-bottom: 6px !important;
+}
+.driver-popover-description {
+  font-family: "Inter", sans-serif !important;
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+  color: #94a3b8 !important;
+}
+.driver-popover-description strong {
+  color: #f1f5f9 !important;
+}
+.driver-popover-footer {
+  margin-top: 14px !important;
+  border-top: 1px solid #334155 !important;
+  padding-top: 10px !important;
+}
+.driver-popover-progress-text {
+  font-family: "Inter", sans-serif !important;
+  font-size: 11px !important;
+  color: #64748b !important;
+}
+.driver-popover-next-btn,
+.driver-popover-done-btn {
+  background-color: #f97316 !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 6px !important;
+  font-family: "Inter", sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  padding: 5px 14px !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+}
+.driver-popover-next-btn:hover,
+.driver-popover-done-btn:hover {
+  background-color: #ea6a0a !important;
+}
+.driver-popover-prev-btn {
+  background-color: transparent !important;
+  color: #94a3b8 !important;
+  border: 1px solid #334155 !important;
+  border-radius: 6px !important;
+  font-family: "Inter", sans-serif !important;
+  font-size: 12px !important;
+  padding: 5px 14px !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+}
+.driver-popover-prev-btn:hover {
+  color: #f1f5f9 !important;
+  border-color: #64748b !important;
+}
+.driver-popover-close-btn {
+  color: #64748b !important;
+  font-size: 18px !important;
+}
+.driver-popover-close-btn:hover {
+  color: #f1f5f9 !important;
+}
+.driver-popover-arrow-side-top.driver-popover-arrow {
+  border-bottom-color: #334155 !important;
+}
+.driver-popover-arrow-side-bottom.driver-popover-arrow {
+  border-top-color: #334155 !important;
+}
+.driver-popover-arrow-side-left.driver-popover-arrow {
+  border-right-color: #334155 !important;
+}
+.driver-popover-arrow-side-right.driver-popover-arrow {
+  border-left-color: #334155 !important;
+}

@@ -4,6 +4,7 @@ import axios from "axios";
 import ChartsSection from "./charts/ChartsSection";
 import HelpModal from "./components/HelpModal";
 import ProjectionSimulator from "./components/ProjectionSimulator";
+import { useTour } from "./hooks/useTour";
 import {
   ThemeProvider,
   createTheme,
@@ -52,6 +53,7 @@ import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import CloseIcon from "@mui/icons-material/Close";
 import PriceCheckIcon from "@mui/icons-material/PriceCheck";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import TravelExploreIcon from "@mui/icons-material/TravelExplore";
 
 if (process.env.NODE_ENV === "development") {
   axios.defaults.baseURL = "http://localhost:8000";
@@ -993,6 +995,8 @@ export default function App() {
 
   const bothUploaded = !!(salesFile && expensesFile);
 
+  const { startTour } = useTour(bothUploaded);
+
   // ── Calculate KPIs ─────────────────────────────────────────────────────────
   const calculate = useCallback(
     async (month, product) => {
@@ -1222,7 +1226,10 @@ export default function App() {
             </Typography>
           </Box>
           {bothUploaded && (
-            <>
+            <Box
+              data-tour="appbar-tables"
+              sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
+            >
               <Tooltip title="Ver tabla de ventas">
                 <Button
                   size="small"
@@ -1265,6 +1272,7 @@ export default function App() {
               <Tooltip title="Descargar reporte PDF">
                 <Button
                   size="small"
+                  data-tour="pdf-button"
                   startIcon={<PictureAsPdfIcon />}
                   onClick={handleDownloadPdf}
                   disabled={pdfLoading}
@@ -1278,15 +1286,25 @@ export default function App() {
                   {pdfLoading ? "Generando…" : "PDF"}
                 </Button>
               </Tooltip>
-            </>
+            </Box>
           )}
           <Tooltip title="Cómo funciona">
             <IconButton
+              data-tour="help-button"
               onClick={() => setHelpOpen(true)}
               size="small"
               sx={{ color: "text.secondary" }}
             >
               <HelpOutlineIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Ver guía de inicio">
+            <IconButton
+              onClick={startTour}
+              size="small"
+              sx={{ color: "text.secondary" }}
+            >
+              <TravelExploreIcon />
             </IconButton>
           </Tooltip>
           {(salesFile || expensesFile) && (
@@ -1323,7 +1341,10 @@ export default function App() {
             flexWrap: "wrap",
           }}
         >
-          <Box sx={{ flex: "1 1 0", minWidth: 280, minHeight: 200 }}>
+          <Box
+            data-tour="sales-upload"
+            sx={{ flex: "1 1 0", minWidth: 280, minHeight: 200 }}
+          >
             <DropzoneCard
               onDrop={onSalesDrop}
               title="Archivo de Ventas"
@@ -1332,7 +1353,10 @@ export default function App() {
               fileName={salesFile}
             />
           </Box>
-          <Box sx={{ flex: "1 1 0", minWidth: 280, minHeight: 200 }}>
+          <Box
+            data-tour="expenses-upload"
+            sx={{ flex: "1 1 0", minWidth: 280, minHeight: 200 }}
+          >
             <DropzoneCard
               onDrop={onExpensesDrop}
               title="Archivo de Gastos"
