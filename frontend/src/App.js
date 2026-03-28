@@ -1174,7 +1174,7 @@ export default function App() {
       a.download =
         selectedMonth && selectedMonth !== "all"
           ? `reporte-${selectedMonth}.pdf`
-          : "reporte-financiero.pdf";
+          : `reporte-financiero-${fmtMonth(CURRENT_MONTH)}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (_) {
@@ -1311,6 +1311,9 @@ export default function App() {
         )}
 
         {/* ── Upload ── */}
+        <h2 style={{ marginBottom: "10px" }}>
+          Carga de Archivos del Mes a Evaluar (Carga un Solo Mes)
+        </h2>
         <Box
           sx={{
             display: "flex",
