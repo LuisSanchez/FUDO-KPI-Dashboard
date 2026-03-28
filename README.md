@@ -1,161 +1,137 @@
-# 🍕 Pizza EBITDA Simulator
+# FUDO Analytics — Pizza Finance Dashboard
 
-A full-stack web application that calculates how many pizzas you need to sell to achieve at least 25% EBITDA margin.
+A full-stack web application that analyzes pizza store profitability using FUDO export files. Calculates EBITDA, CMV, and break-even points, and simulates how many additional units you need to sell to reach target margins.
 
 ## Features
 
-- 📤 **Drag & Drop File Upload**: Upload sales and expenses Excel files
-- 📊 **KPI Calculations**: Real-time EBITDA, margins, and cost analysis
-- 🎯 **Simulation Mode**: Test how additional pizza sales affect your EBITDA
-- 🔄 **Responsive Design**: Works on desktop and mobile
+- **Drag & Drop Upload** — Sales (`Adiciones` sheet) and expenses (`Gastos` sheet) Excel files
+- **KPI Dashboard** — Real-time EBITDA, CMV%, margins, and expense breakdown (operational vs. loans vs. CapEx)
+- **Break-even Simulator** — Per-product simulation showing units needed for EBITDA = 0 and EBITDA = 25%
+- **Projection Simulator** — Current-month projection: daily sales pace needed to close the gap before month end
+- **Visual Analytics** — 10 charts: daily trend with 7-day rolling average, by-hour, by-weekday, top products, distribution, and scatter
+- **Data Tables** — Sortable tables for sales by product, expense detail, and per-product pricing/margins
+- **PDF Report** — Download a financial summary PDF for any month
 
 ## Project Structure
 
 ```
 omp/
-├── backend/              # Django REST API
+├── backend/
 │   ├── manage.py
 │   ├── requirements.txt
-│   ├── pizza_simulator/  # Django settings
-│   └── simulator/        # API endpoints & data processing
-│       ├── data_processing.py  # sales_clean_up_data & kpi_calculations
-│       ├── views.py
-│       └── urls.py
-├── frontend/             # React Application
+│   ├── pizza_simulator/       # Django settings
+│   └── simulator/
+│       ├── data_processing.py # Business logic: cleaning, KPIs, chart data
+│       ├── report.py          # PDF report generator (reportlab)
+│       ├── views.py           # API endpoints
+│       ├── urls.py
+│       └── models.py          # UserSessionData (SQLite, session-keyed)
+├── frontend/
 │   ├── package.json
-│   ├── public/
 │   └── src/
-│       ├── App.js       # Main application
-│       ├── index.js
-│       └── index.css
+│       ├── App.js             # Top-level state & layout
+│       ├── charts/
+│       │   ├── chartConfig.js
+│       │   ├── ChartsSection.js
+│       │   ├── SalesTrend.js  # Full-width daily trend + rolling average
+│       │   ├── SalesByDay.js / SalesByWeekday.js
+│       │   ├── SalesByHour.js / RevenueByHour.js
+│       │   ├── TopProductsByQuantity.js / TopProductsByRevenue.js
+│       │   ├── ProductDistribution.js
+│       │   └── QuantityVsRevenue.js
+│       └── components/
+│           ├── HelpModal.js
+│           └── ProjectionSimulator.js
 └── README.md
 ```
 
 ## Tech Stack
 
 ### Backend
-- **Django 5.2+**: Web framework
-- **Django REST Framework**: API endpoints
-- **Pandas**: Data processing
-- **OpenPyXL**: Excel file handling
+- **Django 5.2** + **Django REST Framework**
+- **Pandas** — data cleaning and aggregation
+- **OpenPyXL / xlrd** — Excel file parsing
+- **ReportLab** — PDF generation
+- **SQLite** — session data storage (dev)
 
 ### Frontend
-- **React 18**: UI framework
-- **React Dropzone**: File uploads
-- **Axios**: HTTP client
+- **React 18** + **MUI v5** (dark theme)
+- **Chart.js 4** + **react-chartjs-2** — all charts
+- **React Dropzone** — file uploads
+- **Axios** — HTTP client
 
 ## Prerequisites
 
 - Python 3.10+
 - Node.js 18+
-- Excel files with the required structure
+- FUDO account with export access
 
-## Excel File Structure
-
-### Sales File (Ventas)
-Required sheet name: "Adiciones"
-Required columns:
-- Id. Venta
-- Creación
-- Producto
-- Categoría
-- Cantidad
-- Precio
-- Costo base
-- Costo modificadores
-- Costo total
-- Creada por
-
-### Expenses File (Gastos)
-Required sheet name: "Gastos"
-Required columns:
-- Id
-- Fecha
-- Fecha de vencimiento
-- Proveedor
-- Categoría
-- Subcategoría
-- Comentario
-- Estado del pago
-- Importe
-- Número Fiscal
-- Tipo de comprobante
-- N° de comprobante
-- Creado por
-- Cancelado
-
-## Installation & Setup
-
-### 1. Backend Setup
+## Quick Start
 
 ```bash
-cd backend
-pip install -r requirements.txt
+# Install everything and run both servers
+make dev
+make run
+```
+
+Or separately:
+
+```bash
+# Backend (port 8000)
+cd backend && pip install -r requirements.txt
 python manage.py migrate
 python manage.py runserver
+
+# Frontend (port 3000)
+cd frontend && npm install && npm start
 ```
 
-The backend will run on http://localhost:8000
+## Excel File Requirements
 
-### 2. Frontend Setup
+### Sales file — sheet `Adiciones`
+Required columns: `Id. Venta`, `Creación`, `Producto`, `Categoría`, `Cantidad`, `Precio`, `Costo base`, `Costo modificadores`, `Costo total`, `Creada por`
 
-```bash
-cd frontend
-npm install
-npm start
-```
-
-The frontend will run on http://localhost:3000
+### Expenses file — sheet `Gastos` (data starts row 4)
+Required columns: `Id`, `Fecha`, `Fecha de vencimiento`, `Proveedor`, `Categoría`, `Subcategoría`, `Comentario`, `Estado del pago`, `Importe`, `Número Fiscal`, `Tipo de comprobante`, `N° de comprobante`, `Creado por`, `Cancelado`
 
 ## API Endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/upload-sales/` | POST | Upload sales Excel file |
-| `/api/upload-expenses/` | POST | Upload expenses Excel file |
-| `/api/products/` | GET | Get list of products |
-| `/api/calculate/` | POST | Calculate KPIs with simulation |
-| `/api/reset/` | POST | Reset all data |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/upload-sales/` | Upload sales Excel |
+| POST | `/api/upload-expenses/` | Upload expenses Excel |
+| GET | `/api/products/` | List unique products |
+| POST | `/api/calculate/` | KPI/EBITDA calculation (`producto`, `month`) |
+| GET | `/api/data/sales/` | Per-product sales table |
+| GET | `/api/data/expenses/` | Expense detail table |
+| GET | `/api/data/charts/` | All chart datasets |
+| GET | `/api/data/product-prices/` | Per-product pricing & margins |
+| GET | `/api/report/pdf/` | Download PDF report (`?month=YYYY-MM`) |
+| POST | `/api/reset/` | Clear session data |
 
-## Usage
+## Key Business Logic
 
-1. Open http://localhost:3000 in your browser
-2. Upload your sales Excel file (Ventas)
-3. Upload your expenses Excel file (Gastos)
-4. Select a product from the dropdown
-5. Enter the quantity of additional sales to simulate
-6. Click "Calculate" to see the results
-7. View your EBITDA and check if you've reached the 25% target
-
-## Response Format
-
-```json
-{
-  "ingresos": {
-    "total_margen": 24949433,
-    "total_ingreso": 39254935,
-    "comision_total": 4504807,
-    "costo_total": 14305502,
-    "total_margen_sin_iva": 18681838
-  },
-  "gastos": {
-    "gastos_totales": 30441308,
-    "pagados_totales": 16982546,
-    "por_pagar_totales": 13458762
-  },
-  "ebitda": {
-    "ebitda": -11759470,
-    "ebitda_percentage": -29.96
-  }
-}
+**EBITDA formula:**
 ```
+EBITDA = Ingresos sin IVA − Gastos operacionales
+```
+Gastos operacionales come from the FUDO expenses file and already include ingredient purchases (Materia Prima). FUDO COGS are **not** subtracted separately to avoid double-counting. Loans and CapEx purchases are excluded.
+
+**Break-even:**
+```
+x = −EBITDA / avg_margin_per_unit
+```
+
+**25% EBITDA target:**
+```
+x = (0.25·I − E) / (m − 0.25·i)
+```
+where `E` = current EBITDA, `I` = current revenue, `m` = margin/unit, `i` = revenue/unit.
+
+**IVA (19%):** All analysis is net of IVA. Cash register amounts = net value × 1.19.
 
 ## Development Notes
 
-- The backend uses in-memory storage for uploaded data (resets on server restart)
-- In production, consider using a proper database
-- CORS is enabled for development purposes
-
-## License
-
-MIT License
+- Session data is stored in SQLite keyed by Django session cookie and expires after 24 h
+- CORS is open for all origins in dev (`CORS_ALLOW_ALL_ORIGINS = True`)
+- All numpy types are cast to Python natives before JSON serialization

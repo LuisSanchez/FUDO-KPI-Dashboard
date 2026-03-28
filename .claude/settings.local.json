@@ -3,7 +3,10 @@
     "allow": [
       "Bash(python3:*)",
       "Bash(npm run:*)",
-      "Bash(python manage.py makemigrations simulator)"
+      "Bash(python manage.py makemigrations simulator)",
+      "Bash(source .venv/bin/activate)",
+      "Bash(python backend/lab/generate_report.py)",
+      "Bash(open:*)"
     ]
   }
 }

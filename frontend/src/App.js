@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import axios from "axios";
 import ChartsSection from "./charts/ChartsSection";
+import HelpModal from "./components/HelpModal";
 import ProjectionSimulator from "./components/ProjectionSimulator";
 import {
   ThemeProvider,
@@ -50,6 +51,7 @@ import TableChartIcon from "@mui/icons-material/TableChart";
 import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
 import CloseIcon from "@mui/icons-material/Close";
 import PriceCheckIcon from "@mui/icons-material/PriceCheck";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 
 if (process.env.NODE_ENV === "development") {
   axios.defaults.baseURL = "http://localhost:8000";
@@ -414,148 +416,6 @@ const SimCard = ({
       </Box>
     )}
   </Paper>
-);
-
-// ── Help Modal ────────────────────────────────────────────────────────────────
-const HelpModal = ({ open, onClose }) => (
-  <Dialog
-    open={open}
-    onClose={onClose}
-    maxWidth="md"
-    fullWidth
-    PaperProps={{ sx: { bgcolor: "#1E293B", border: "1px solid #334155" } }}
-  >
-    <DialogTitle
-      sx={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-      }}
-    >
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        <HelpOutlineIcon color="primary" />
-        <Typography variant="h6">Cómo funciona FUDO Analytics</Typography>
-      </Box>
-      <IconButton onClick={onClose} size="small">
-        <CloseIcon fontSize="small" />
-      </IconButton>
-    </DialogTitle>
-    <DialogContent dividers sx={{ borderColor: "#334155" }}>
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-        <Box>
-          <Typography variant="subtitle2" color="primary.main" sx={{ mb: 1 }}>
-            ¿Qué hace esta app?
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Analiza la rentabilidad de tu tienda cargando los reportes de ventas
-            y gastos exportados desde FUDO. Calcula automáticamente EBITDA, CMV,
-            márgenes y simula cuántas unidades adicionales necesitas vender para
-            alcanzar el equilibrio o una meta de rentabilidad del 25%.
-          </Typography>
-        </Box>
-
-        <Box>
-          <Typography variant="subtitle2" color="primary.main" sx={{ mb: 1 }}>
-            Archivos necesarios (desde FUDO)
-          </Typography>
-          <Box component="ul" sx={{ pl: 2, m: 0 }}>
-            {[
-              [
-                "Ventas",
-                'Exportar reporte "Adiciones" (.xls). Contiene el detalle de cada ítem vendido con precio y costo de ingredientes.',
-              ],
-              [
-                "Gastos",
-                'Exportar reporte "Gastos" (.xlsx). Contiene todos los gastos registrados con proveedor, categoría e importe.',
-              ],
-            ].map(([t, d]) => (
-              <Box component="li" key={t} sx={{ mb: 1 }}>
-                <Typography variant="body2">
-                  <strong style={{ color: "#F1F5F9" }}>{t}:</strong>{" "}
-                  <span style={{ color: "#94A3B8" }}>{d}</span>
-                </Typography>
-              </Box>
-            ))}
-          </Box>
-        </Box>
-
-        <Box>
-          <Typography variant="subtitle2" color="primary.main" sx={{ mb: 1 }}>
-            Cálculos y fórmulas
-          </Typography>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-            {[
-              [
-                "IVA (19%)",
-                'Los precios de venta de FUDO incluyen IVA, igual que los costos de ingredientes. Todos los valores "sin IVA" se obtienen dividiendo por 1.19, permitiendo comparar en términos netos. El IVA no es ingreso real — lo recaudas y lo devuelves al SII.',
-              ],
-              [
-                "CMV — Costo de Mercadería Vendida",
-                "CMV% = (Costo ingredientes sin IVA) / (Ingreso sin IVA) × 100. Mide qué fracción de cada peso de venta se destina a ingredientes y modificadores. Rango ideal para restaurantes: 25–35%. Por debajo del 25% es excelente; por encima del 42% indica problemas en costos o precios.",
-              ],
-              [
-                "Comisión Uber Eats (30%)",
-                'Los pedidos con origen "uber_eats" tienen un 30% del ingreso descontado como comisión de plataforma. Esta comisión se suma al costo total del ítem. El ingreso bruto que ves incluye la comisión; el margen ya la descuenta.',
-              ],
-              [
-                "Margen bruto sin IVA",
-                "Ingreso sin IVA − COGS sin IVA (ingredientes + modificadores + comisiones). Representa lo que queda de cada venta antes de pagar gastos fijos.",
-              ],
-              [
-                "EBITDA",
-                "EBITDA = Margen bruto sin IVA − Gastos operacionales. Los préstamos de socios y activos fijos (capex) se excluyen porque son actividades de financiamiento/inversión, no operacionales. El % se calcula sobre el ingreso sin IVA.",
-              ],
-              [
-                "Simulador",
-                "Para el producto seleccionado, calcula el promedio de margen por unidad vendida históricamente. Luego resuelve: ¿cuántas unidades adicionales se necesitan para que EBITDA = 0 (equilibrio) y para que EBITDA% = 25%? La fórmula es x = (0.25·I + G − M) / (m − 0.25·i), donde M = margen actual, G = gastos, I = ingreso, m e i = margen e ingreso por unidad.",
-              ],
-            ].map(([title, text]) => (
-              <Box key={title}>
-                <Typography
-                  variant="body2"
-                  fontWeight={600}
-                  sx={{ color: "#F1F5F9", mb: 0.3 }}
-                >
-                  {title}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {text}
-                </Typography>
-              </Box>
-            ))}
-          </Box>
-        </Box>
-
-        <Box
-          sx={{
-            bgcolor: "#F97316" + "15",
-            border: "1px solid",
-            borderColor: "#F97316" + "40",
-            borderRadius: 2,
-            p: 2,
-          }}
-        >
-          <Typography
-            variant="body2"
-            sx={{ color: "#FBBF24", fontWeight: 600, mb: 0.5 }}
-          >
-            ⚠️ Los datos son efímeros
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Los archivos cargados se almacenan en memoria mientras el servidor
-            está activo. Al reiniciar el servidor o hacer clic en "Reiniciar",
-            todos los datos se pierden. No se guarda ninguna información en base
-            de datos. En una versión futura se añadirá persistencia.
-          </Typography>
-        </Box>
-      </Box>
-    </DialogContent>
-    <DialogActions sx={{ px: 3, py: 2 }}>
-      <Button onClick={onClose} variant="contained" color="primary">
-        Entendido
-      </Button>
-    </DialogActions>
-  </Dialog>
 );
 
 // ── Sales Table Modal ─────────────────────────────────────────────────────────
@@ -1129,6 +989,7 @@ export default function App() {
   const [expensesTableData, setExpensesTableData] = useState([]);
   const [pricesTableData, setPricesTableData] = useState([]);
   const [toast, setToast] = useState({ open: false, message: "" });
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const bothUploaded = !!(salesFile && expensesFile);
 
@@ -1293,6 +1154,36 @@ export default function App() {
     setToast({ open: false, message: "" });
   };
 
+  // ── PDF download ───────────────────────────────────────────────────────────
+  const handleDownloadPdf = async () => {
+    setPdfLoading(true);
+    try {
+      const params =
+        selectedMonth && selectedMonth !== "all"
+          ? { month: selectedMonth }
+          : {};
+      const res = await axios.get("/api/report/pdf/", {
+        params,
+        responseType: "blob",
+      });
+      const url = URL.createObjectURL(
+        new Blob([res.data], { type: "application/pdf" }),
+      );
+      const a = document.createElement("a");
+      a.href = url;
+      a.download =
+        selectedMonth && selectedMonth !== "all"
+          ? `reporte-${selectedMonth}.pdf`
+          : "reporte-financiero.pdf";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (_) {
+      setToast({ open: true, message: "Error al generar el reporte PDF" });
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
   const sim = results?.simulation;
   const ing = results?.ingresos;
   const gas = results?.gastos;
@@ -1369,6 +1260,22 @@ export default function App() {
                   }}
                 >
                   Precios
+                </Button>
+              </Tooltip>
+              <Tooltip title="Descargar reporte PDF">
+                <Button
+                  size="small"
+                  startIcon={<PictureAsPdfIcon />}
+                  onClick={handleDownloadPdf}
+                  disabled={pdfLoading}
+                  sx={{
+                    color: "primary.main",
+                    borderColor: "primary.main",
+                    border: "1px solid",
+                    "&:hover": { bgcolor: "#F9731620" },
+                  }}
+                >
+                  {pdfLoading ? "Generando…" : "PDF"}
                 </Button>
               </Tooltip>
             </>

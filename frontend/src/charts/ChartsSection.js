@@ -23,6 +23,7 @@ import CloseIcon from "@mui/icons-material/Close";
 // Central registration (must run before any chart renders)
 import "./chartConfig";
 
+import SalesTrend from "./SalesTrend";
 import SalesByDay from "./SalesByDay";
 import SalesByWeekday from "./SalesByWeekday";
 import SalesByHour from "./SalesByHour";
@@ -117,6 +118,27 @@ const ChartsSection = ({ salesLoaded, selectedMonth }) => {
 
       {!loading && chartData && (
         <>
+          {/* ── Full-width trend chart ── */}
+          <Box sx={{ mb: 3 }}>
+            <ChartCard
+              title="Evolución Diaria del Mes"
+              modalContent="trend"
+              onOpenModal={() =>
+                setModalChart({
+                  title: "Evolución Diaria del Mes",
+                  content: (
+                    <SalesTrend
+                      daily={chartData.daily}
+                      height={MODAL_CHART_HEIGHT}
+                    />
+                  ),
+                })
+              }
+            >
+              <SalesTrend daily={chartData.daily} />
+            </ChartCard>
+          </Box>
+
           <Box
             sx={{
               display: "flex",

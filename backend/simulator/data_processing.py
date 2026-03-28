@@ -97,7 +97,13 @@ def kpi_calculations(
     prestamos_socios = df_expenses[is_loan]["Importe"].sum()
     activo_fijo = df_expenses[is_capex]["Importe"].sum()
 
-    ebitda = total_margen_sin_iva - gastos_totales - sueldos
+    # EBITDA = revenue − all operational expenses.
+    # We do NOT subtract FUDO COGS here because gastos_totales already includes
+    # the actual ingredient purchases (Materia Prima) from the expenses file.
+    # Subtracting total_margen_sin_iva (which already deducts FUDO COGS) would
+    # double-count ingredient costs. The gross margin is shown separately in the
+    # UI for per-product analysis only.
+    ebitda = total_ingreso_sin_iva - gastos_totales - sueldos
     ebitda_percentage = (
         (ebitda / total_ingreso_sin_iva) * 100 if total_ingreso_sin_iva > 0 else 0
     )
@@ -119,31 +125,26 @@ def kpi_calculations(
                 else 0
             )
 
-            already_breakeven = total_margen_sin_iva >= gastos_totales
+            already_breakeven = ebitda >= 0
             already_25pct = ebitda_percentage >= 25
 
-            # Breakeven: M + x*m = G  →  x = (G - M) / m
+            # Breakeven: ebitda + x*m = 0  →  x = -ebitda / m
+            # where m = avg_margen_per_unit (contribution after variable COGS)
             if already_breakeven:
                 breakeven_units = 0
             elif avg_margen_per_unit > 0:
-                breakeven_units = math.ceil(
-                    (gastos_totales - total_margen_sin_iva) / avg_margen_per_unit
-                )
+                breakeven_units = math.ceil(-ebitda / avg_margen_per_unit)
             else:
                 breakeven_units = None  # negative or zero margin product
 
-            # 25% EBITDA: (M + x*m - G) / (I + x*i) = 0.25
-            # x = (0.25*I + G - M) / (m - 0.25*i)
+            # 25% EBITDA: (ebitda + x*m) / (I + x*i) = 0.25
+            # x = (0.25*I - ebitda) / (m - 0.25*i)
             if already_25pct:
                 target_25_units = 0
             else:
                 denom = avg_margen_per_unit - 0.25 * avg_ingreso_per_unit
                 if denom > 0:
-                    numer = (
-                        0.25 * total_ingreso_sin_iva
-                        + gastos_totales
-                        - total_margen_sin_iva
-                    )
+                    numer = 0.25 * total_ingreso_sin_iva - ebitda
                     target_25_units = max(0, math.ceil(numer / denom))
                 else:
                     target_25_units = (

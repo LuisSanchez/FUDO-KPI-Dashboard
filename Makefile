@@ -2,8 +2,9 @@ SHELL := /bin/bash # Use bash syntax
 ARG := $(word 2, $(MAKECMDGOALS) )
 BACK_ENV ?= ./backend/pizza_simulator/.env
 
-black:
+format:
 	black .
+	cd ./frontend && npm run format
 
 run-be:
 	python ./backend/manage.py runserver
@@ -41,6 +42,11 @@ dev:
 
 build:
 	docker build -t omp .
+	make up
+
+make rebuild:
+	docker stop omp && docker rm omp
+	docker build --no-cache -t omp .
 	make up
 
 down:

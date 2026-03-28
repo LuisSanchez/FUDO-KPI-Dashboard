@@ -11,4 +11,5 @@ urlpatterns = [
     path("data/charts/", views.chart_data, name="chart_data"),
     path("data/product-prices/", views.product_prices_data, name="product_prices_data"),
     path("reset/", views.reset_data, name="reset_data"),
+    path("report/pdf/", views.download_report, name="download_report"),
 ]

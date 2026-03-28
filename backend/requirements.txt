@@ -10,3 +10,4 @@ matplotlib
 plotly
 nbformat
 arrow
+reportlab

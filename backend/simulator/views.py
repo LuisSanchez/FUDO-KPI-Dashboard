@@ -2,6 +2,7 @@ import io
 import pickle
 
 import pandas as pd
+from django.http import HttpResponse
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
@@ -313,3 +314,39 @@ def reset_data(request):
     store.sales_months = []
     store.save()
     return Response({"message": "Data reset successfully"})
+
+
+@api_view(["GET"])
+def download_report(request):
+    """Generate and download a PDF financial report for the current session data."""
+    from .report import build_financial_report
+
+    store = _get_store(request)
+    if store.sales_df_pickle is None:
+        return Response(
+            {"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST
+        )
+    if store.expenses_df_pickle is None:
+        return Response(
+            {"error": "No expenses data uploaded yet"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    month = request.query_params.get("month")
+
+    try:
+        df_sales = _load_df(store.sales_df_pickle).copy()
+        df_expenses = _load_df(store.expenses_df_pickle).copy()
+
+        pdf_bytes = build_financial_report(df_sales, df_expenses, month=month)
+
+        filename = f"reporte-{month}.pdf" if month else "reporte-financiero.pdf"
+        response = HttpResponse(pdf_bytes, content_type="application/pdf")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response
+
+    except Exception as e:
+        return Response(
+            {"error": f"Error generating report: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
