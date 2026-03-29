@@ -625,6 +625,84 @@ def get_product_prices_table(df: pd.DataFrame) -> List[Dict]:
     ]
 
 
+def simulate_price_cost(
+    df: pd.DataFrame,
+    df_expenses: pd.DataFrame,
+    price_increase_clp: float,
+    cost_increase_pct: float,
+) -> Dict[str, Any]:
+    """
+    Simulate the EBITDA impact of two simultaneous changes using the current
+    period data as the baseline:
+
+    - price_increase_clp: consumer price increase per pizza (CLP con IVA).
+      Applied to every unit sold → extra revenue = units × (price_increase / 1.19).
+    - cost_increase_pct: percentage increase on ingredient costs (CMV).
+      Applied to total ingredient cost → extra cost = total_cmv × (pct / 100).
+
+    Gastos operacionales (rent, payroll, utilities …) are taken from the expense
+    file unmodified; only the variable ingredient component scales.
+    """
+    if df.empty:
+        return {}
+
+    total_units = float(df["Cantidad"].sum())
+    total_ingreso_sin_iva = float(df["ingreso_sin_iva"].sum())
+    total_costo_ing_sin_iva = float(df["costo_ingredientes_sin_iva"].sum())
+
+    # Replicate the operational expense filter from kpi_calculations
+    df_exp = df_expenses[df_expenses["Cancelado"] == "No"].copy()
+    sales_months = df["created_at"].dt.to_period("M").unique()
+    df_exp["Fecha"] = pd.to_datetime(df_exp["Fecha"], errors="coerce")
+    df_exp = df_exp[df_exp["Fecha"].dt.to_period("M").isin(sales_months)]
+    is_loan = df_exp["Proveedor"].str.contains("Prestamo", case=False, na=False)
+    is_capex = df_exp["Categoría"] == "Activo Fijo"
+    gastos_totales = float(df_exp[~is_loan & ~is_capex]["Importe"].sum())
+
+    current_ebitda = total_ingreso_sin_iva - gastos_totales
+    current_ebitda_pct = (
+        (current_ebitda / total_ingreso_sin_iva * 100)
+        if total_ingreso_sin_iva > 0
+        else 0
+    )
+
+    # Price impact: each of the existing units now earns more (sin IVA)
+    revenue_delta = total_units * (price_increase_clp / 1.19)
+    # Cost impact: ingredient costs rise by cost_increase_pct %
+    cost_delta = total_costo_ing_sin_iva * (cost_increase_pct / 100)
+
+    projected_ingreso = total_ingreso_sin_iva + revenue_delta
+    projected_ebitda = current_ebitda + revenue_delta - cost_delta
+    projected_ebitda_pct = (
+        (projected_ebitda / projected_ingreso * 100) if projected_ingreso > 0 else 0
+    )
+
+    avg_price_sin_iva = total_ingreso_sin_iva / total_units if total_units > 0 else 0
+    avg_price_sin_iva_new = projected_ingreso / total_units if total_units > 0 else 0
+
+    def r(v):
+        return float(round(v, 0))
+
+    return {
+        "units_sold": int(total_units),
+        "current_ingreso_sin_iva": r(total_ingreso_sin_iva),
+        "current_ebitda": r(current_ebitda),
+        "current_ebitda_pct": round(current_ebitda_pct, 1),
+        "revenue_delta": r(revenue_delta),
+        "cost_delta": r(cost_delta),
+        "net_delta": r(revenue_delta - cost_delta),
+        "projected_ingreso_sin_iva": r(projected_ingreso),
+        "projected_ebitda": r(projected_ebitda),
+        "projected_ebitda_pct": round(projected_ebitda_pct, 1),
+        "avg_price_sin_iva_current": r(avg_price_sin_iva),
+        "avg_price_sin_iva_projected": r(avg_price_sin_iva_new),
+        "avg_price_clp_current": r(avg_price_sin_iva * 1.19),
+        "avg_price_clp_projected": r(avg_price_sin_iva_new * 1.19),
+        "cmv_sin_iva_current": r(total_costo_ing_sin_iva),
+        "cmv_sin_iva_projected": r(total_costo_ing_sin_iva + cost_delta),
+    }
+
+
 def add_simulated_sales(df: pd.DataFrame, producto: str, cantidad: int) -> pd.DataFrame:
     """Add simulated sales to the dataframe.
 

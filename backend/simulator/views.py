@@ -18,6 +18,7 @@ from .data_processing import (
     get_expenses_table,
     get_chart_data,
     get_product_prices_table,
+    simulate_price_cost,
 )
 
 
@@ -302,6 +303,58 @@ def product_prices_data(request):
         df = df[df["created_at"].dt.to_period("M").astype(str) == month]
 
     return Response(get_product_prices_table(df))
+
+
+@api_view(["GET"])
+def price_cost_simulator(request):
+    """
+    Simulate the EBITDA impact of a price increase per unit (CLP con IVA)
+    and a percentage increase in ingredient costs.
+
+    Query params:
+      price_increase  — CLP con IVA added to every pizza sold (default 0)
+      cost_increase   — % increase on ingredient costs (default 0)
+      month           — optional YYYY-MM filter
+    """
+    store = _get_store(request)
+    if store.sales_df_pickle is None:
+        return Response(
+            {"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST
+        )
+    if store.expenses_df_pickle is None:
+        return Response(
+            {"error": "No expenses data uploaded yet"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        price_increase = float(request.query_params.get("price_increase", 0))
+        cost_increase = float(request.query_params.get("cost_increase", 0))
+        month = request.query_params.get("month")
+    except (TypeError, ValueError):
+        return Response(
+            {"error": "price_increase and cost_increase must be numbers"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        df_sales = _load_df(store.sales_df_pickle).copy()
+        df_expenses = _load_df(store.expenses_df_pickle).copy()
+
+        if month:
+            df_sales = df_sales[
+                df_sales["created_at"].dt.to_period("M").astype(str) == month
+            ]
+
+        result = simulate_price_cost(
+            df_sales, df_expenses, price_increase, cost_increase
+        )
+        return Response(result)
+    except Exception as e:
+        return Response(
+            {"error": f"Error running simulation: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 @api_view(["POST"])

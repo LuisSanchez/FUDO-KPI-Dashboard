@@ -10,6 +10,9 @@ urlpatterns = [
     path("data/expenses/", views.expenses_table_data, name="expenses_table_data"),
     path("data/charts/", views.chart_data, name="chart_data"),
     path("data/product-prices/", views.product_prices_data, name="product_prices_data"),
+    path(
+        "simulate/price-cost/", views.price_cost_simulator, name="price_cost_simulator"
+    ),
     path("reset/", views.reset_data, name="reset_data"),
     path("report/pdf/", views.download_report, name="download_report"),
 ]

@@ -4,6 +4,7 @@ import axios from "axios";
 import ChartsSection from "./charts/ChartsSection";
 import HelpModal from "./components/HelpModal";
 import ProjectionSimulator from "./components/ProjectionSimulator";
+import PriceCostSimulator from "./components/PriceCostSimulator";
 import { useTour } from "./hooks/useTour";
 import {
   ThemeProvider,
@@ -1724,6 +1725,13 @@ export default function App() {
           selectedMonth={selectedMonth}
           isCurrentMonth={isCurrentMonth}
           products={products}
+        />
+
+        {/* ── Price & Cost Scenario Simulator ── */}
+        <PriceCostSimulator
+          salesLoaded={!!salesFile}
+          expensesLoaded={!!expensesFile}
+          selectedMonth={selectedMonth}
         />
 
         {/* ── Charts ── */}
