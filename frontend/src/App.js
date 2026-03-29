@@ -444,9 +444,9 @@ const SalesTableModal = ({ open, onClose, data, month }) => {
     { id: "ingreso_sin_iva", label: "Ingreso s/IVA", numeric: true },
     { id: "cmv_pct", label: "CMV%", numeric: true },
     { id: "cmv", label: "CMV $", numeric: true },
-    { id: "margen_sin_iva", label: "Margen s/IVA", numeric: true },
+    { id: "comision_pct", label: "Comis.%", numeric: true },
     { id: "margen_pct", label: "Margen%", numeric: true },
-    { id: "comision", label: "Comisión UE", numeric: true },
+    { id: "margen_sin_iva", label: "Margen $", numeric: true },
   ];
 
   const totals = sorted.reduce(
@@ -459,14 +459,11 @@ const SalesTableModal = ({ open, onClose, data, month }) => {
     }),
     { cantidad: 0, ingreso_sin_iva: 0, cmv: 0, margen_sin_iva: 0, comision: 0 },
   );
-  const totalCmvPct =
-    totals.ingreso_sin_iva > 0
-      ? ((totals.cmv / totals.ingreso_sin_iva) * 100).toFixed(1)
-      : "—";
-  const totalMarPct =
-    totals.ingreso_sin_iva > 0
-      ? ((totals.margen_sin_iva / totals.ingreso_sin_iva) * 100).toFixed(1)
-      : "—";
+  const pct = (num, denom) =>
+    denom > 0 ? ((num / denom) * 100).toFixed(1) : "—";
+  const totalCmvPct = pct(totals.cmv, totals.ingreso_sin_iva);
+  const totalComisionPct = pct(totals.comision / 1.19, totals.ingreso_sin_iva);
+  const totalMarPct = pct(totals.margen_sin_iva, totals.ingreso_sin_iva);
 
   return (
     <Dialog
@@ -546,15 +543,53 @@ const SalesTableModal = ({ open, onClose, data, month }) => {
                     {CLP(row.ingreso_sin_iva)}
                   </TableCell>
                   <TableCell align="right">
-                    <Chip
-                      label={`${row.cmv_pct}%`}
-                      size="small"
-                      color={cmvColor(row.cmv_pct)}
-                      sx={{ fontSize: "0.65rem", height: 20 }}
-                    />
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "flex-end",
+                        gap: 0.5,
+                      }}
+                    >
+                      {row.cmv_pct === 0 && (
+                        <Tooltip title="CMV 0%: este producto no tiene costo de ingredientes registrado en FUDO. Puede ser un error de configuración.">
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: "warning.main",
+                              fontWeight: 700,
+                              cursor: "help",
+                            }}
+                          >
+                            ⚠
+                          </Typography>
+                        </Tooltip>
+                      )}
+                      <Chip
+                        label={`${row.cmv_pct}%`}
+                        size="small"
+                        color={
+                          row.cmv_pct === 0 ? "warning" : cmvColor(row.cmv_pct)
+                        }
+                        sx={{ fontSize: "0.65rem", height: 20 }}
+                      />
+                    </Box>
                   </TableCell>
                   <TableCell align="right">{CLP(row.cmv)}</TableCell>
-                  <TableCell align="right">{CLP(row.margen_sin_iva)}</TableCell>
+                  <TableCell align="right">
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color:
+                          row.comision_pct > 0
+                            ? "error.main"
+                            : "text.secondary",
+                        fontWeight: row.comision_pct > 0 ? 600 : 400,
+                      }}
+                    >
+                      {row.comision_pct > 0 ? `${row.comision_pct}%` : "—"}
+                    </Typography>
+                  </TableCell>
                   <TableCell align="right">
                     <Typography
                       variant="caption"
@@ -571,14 +606,7 @@ const SalesTableModal = ({ open, onClose, data, month }) => {
                       {row.margen_pct}%
                     </Typography>
                   </TableCell>
-                  <TableCell
-                    align="right"
-                    sx={{
-                      color: row.comision > 0 ? "error.main" : "text.secondary",
-                    }}
-                  >
-                    {row.comision > 0 ? CLP(row.comision) : "—"}
-                  </TableCell>
+                  <TableCell align="right">{CLP(row.margen_sin_iva)}</TableCell>
                 </TableRow>
               ))}
               {/* Totals row */}
@@ -608,8 +636,11 @@ const SalesTableModal = ({ open, onClose, data, month }) => {
                 <TableCell align="right" sx={{ fontWeight: 700 }}>
                   {CLP(totals.cmv)}
                 </TableCell>
-                <TableCell align="right" sx={{ fontWeight: 700 }}>
-                  {CLP(totals.margen_sin_iva)}
+                <TableCell
+                  align="right"
+                  sx={{ fontWeight: 700, color: "error.main" }}
+                >
+                  {totalComisionPct !== "—" ? `${totalComisionPct}%` : "—"}
                 </TableCell>
                 <TableCell
                   align="right"
@@ -617,11 +648,8 @@ const SalesTableModal = ({ open, onClose, data, month }) => {
                 >
                   {totalMarPct}%
                 </TableCell>
-                <TableCell
-                  align="right"
-                  sx={{ fontWeight: 700, color: "error.main" }}
-                >
-                  {CLP(totals.comision)}
+                <TableCell align="right" sx={{ fontWeight: 700 }}>
+                  {CLP(totals.margen_sin_iva)}
                 </TableCell>
               </TableRow>
             </TableBody>

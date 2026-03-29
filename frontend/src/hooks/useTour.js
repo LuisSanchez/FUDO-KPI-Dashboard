@@ -11,7 +11,7 @@ function buildSteps(bothUploaded) {
       popover: {
         title: "① Carga tus ventas",
         description:
-          "Arrastra o selecciona el archivo <strong>Adiciones</strong> exportado desde FUDO. Los gráficos de ventas, ranking de productos y la tendencia diaria se activarán al instante.",
+          "Arrastra o selecciona el archivo <strong>Ventas</strong> exportado desde FUDO. Los gráficos de ventas, ranking de productos y la tendencia diaria se activarán al instante.",
         side: "bottom",
         align: "start",
       },

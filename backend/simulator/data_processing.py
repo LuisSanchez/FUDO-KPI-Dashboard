@@ -5,11 +5,104 @@ import io
 from typing import Dict, Any, List, Optional
 
 
+def _build_cost_lookup(df: pd.DataFrame) -> Dict[str, float]:
+    """
+    Build a {product_name: avg_costo_base_per_unit} dict from rows that have
+    a valid (non-zero) Costo base and belong to a normal sales category.
+    Rows in "Extra" / "Arma Tu Pizza" categories and "Producto Genérico" are
+    excluded so they don't pollute the reference costs.
+    """
+    exclude_cats = {"Extra", "Arma Tu Pizza"}
+    valid = df[
+        (df["Costo base"] > 0)
+        & (~df["Categoría"].isin(exclude_cats))
+        & (df["Producto"] != "Producto Genérico")
+    ].copy()
+
+    if valid.empty:
+        return {}
+
+    valid["_unit_cost"] = valid["Costo base"] / valid["Cantidad"].replace(0, 1)
+    return valid.groupby("Producto")["_unit_cost"].mean().to_dict()
+
+
+def _lookup_cost(name: str, lookup: Dict[str, float]) -> float:
+    """
+    Return the per-unit Costo base for *name* from the lookup table.
+    Tries exact match first, then case-insensitive, then substring containment
+    (longest product name that is contained in *name* wins, to handle cases
+    where Comentario has extra text around the product name).
+    Returns 0.0 if nothing matches.
+    """
+    if not name or pd.isna(name):
+        return 0.0
+    name = str(name).strip()
+
+    if name in lookup:
+        return lookup[name]
+
+    name_lower = name.lower()
+    for key, val in lookup.items():
+        if key.lower() == name_lower:
+            return val
+
+    # Substring: pick the longest key that fits inside name (or name inside key)
+    best_val, best_len = 0.0, 0
+    for key, val in lookup.items():
+        k = key.lower()
+        if k in name_lower and len(k) > best_len:
+            best_val, best_len = val, len(k)
+        elif name_lower in k and len(name_lower) > best_len:
+            best_val, best_len = val, len(name_lower)
+
+    return best_val
+
+
+def _impute_zero_costs(df: pd.DataFrame, lookup: Dict[str, float]) -> pd.DataFrame:
+    """
+    Fill in zero Costo base for two known edge cases:
+
+    1. **"Extra" promotions** (Categoría == "Extra", Costo base == 0, Costo modificadores == 0):
+       The product is included as a promotion so its price is 0, but the ingredient
+       cost is real. Look up the product name in *lookup* and assign
+       Costo base = unit_cost × Cantidad.
+
+    2. **"Producto Genérico"** (Producto == "Producto Genérico", Costo base == 0):
+       FUDO records these with a placeholder name. The real product name lives in
+       the "Comentario" column. Look up that name in *lookup*.
+
+    "Arma Tu Pizza" category items intentionally have Costo base == 0 (their cost
+    is embedded in the parent pizza) and are NOT modified here.
+    """
+    df = df.copy()
+
+    # 1. Extra promotions
+    mask_extra = (
+        (df["Categoría"] == "Extra")
+        & (df["Costo base"] == 0)
+        & (df["Costo modificadores"] == 0)
+    )
+    for idx in df[mask_extra].index:
+        unit_cost = _lookup_cost(df.at[idx, "Producto"], lookup)
+        if unit_cost > 0:
+            df.at[idx, "Costo base"] = unit_cost * df.at[idx, "Cantidad"]
+
+    # 2. Producto Genérico — resolve via Comentario
+    if "Comentario" in df.columns:
+        mask_generic = (df["Producto"] == "Producto Genérico") & (df["Costo base"] == 0)
+        for idx in df[mask_generic].index:
+            comentario = df.at[idx, "Comentario"]
+            unit_cost = _lookup_cost(str(comentario), lookup)
+            if unit_cost > 0:
+                df.at[idx, "Costo base"] = unit_cost * df.at[idx, "Cantidad"]
+
+    return df
+
+
 def sales_clean_up_data(df: pd.DataFrame) -> pd.DataFrame:
     """Clean up sales dataframe and calculate margins."""
-    # this will asume that the columns are in the correct format, if not, it will raise an error
     if "Creación" in df.columns:
-        skipped_columns = [
+        cols = [
             "Id. Venta",
             "Creación",
             "Producto",
@@ -21,7 +114,14 @@ def sales_clean_up_data(df: pd.DataFrame) -> pd.DataFrame:
             "Costo total",
             "Creada por",
         ]
-        df = df[skipped_columns].copy()
+        # Keep Comentario when present — needed to resolve "Producto Genérico" costs
+        if "Comentario" in df.columns:
+            cols.append("Comentario")
+        df = df[cols].copy()
+
+    # Build reference cost table, then impute missing costs before any derivations
+    cost_lookup = _build_cost_lookup(df)
+    df = _impute_zero_costs(df, cost_lookup)
 
     # if Producto column is 'Duo Familiar (2pizzas)' set Costo modificadores to 0
     df.loc[df["Producto"] == "Duo Familiar (2pizzas)", "Costo modificadores"] = 0
@@ -119,6 +219,13 @@ def kpi_calculations(
             quantities = product_df["Cantidad"].replace(0, 1)
             avg_ingreso_per_unit = (product_df["ingreso_sin_iva"] / quantities).mean()
             avg_margen_per_unit = (product_df["margen_sin_iva"] / quantities).mean()
+            avg_costo_ing_per_unit = (
+                product_df["costo_ingredientes_sin_iva"] / quantities
+            ).mean()
+            # Contribution per unit = ingreso − ingredient cost only.
+            # Uber Eats commission is NOT in the expense file (Uber pays net),
+            # so it is not a variable cost in the EBITDA = ingreso − gastos model.
+            avg_contribution_per_unit = avg_ingreso_per_unit - avg_costo_ing_per_unit
             margen_pct = (
                 float(round(avg_margen_per_unit / avg_ingreso_per_unit * 100, 1))
                 if avg_ingreso_per_unit > 0
@@ -128,21 +235,21 @@ def kpi_calculations(
             already_breakeven = ebitda >= 0
             already_25pct = ebitda_percentage >= 25
 
-            # Breakeven: ebitda + x*m = 0  →  x = -ebitda / m
-            # where m = avg_margen_per_unit (contribution after variable COGS)
+            # Breakeven: ebitda + x*c = 0  →  x = -ebitda / c
+            # where c = avg_contribution_per_unit (ingreso − ingredient COGS)
             if already_breakeven:
                 breakeven_units = 0
-            elif avg_margen_per_unit > 0:
-                breakeven_units = math.ceil(-ebitda / avg_margen_per_unit)
+            elif avg_contribution_per_unit > 0:
+                breakeven_units = math.ceil(-ebitda / avg_contribution_per_unit)
             else:
-                breakeven_units = None  # negative or zero margin product
+                breakeven_units = None  # contribution negative, can't break even
 
-            # 25% EBITDA: (ebitda + x*m) / (I + x*i) = 0.25
-            # x = (0.25*I - ebitda) / (m - 0.25*i)
+            # 25% EBITDA: (ebitda + x*c) / (I + x*i) = 0.25
+            # x = (0.25*I - ebitda) / (c - 0.25*i)
             if already_25pct:
                 target_25_units = 0
             else:
-                denom = avg_margen_per_unit - 0.25 * avg_ingreso_per_unit
+                denom = avg_contribution_per_unit - 0.25 * avg_ingreso_per_unit
                 if denom > 0:
                     numer = 0.25 * total_ingreso_sin_iva - ebitda
                     target_25_units = max(0, math.ceil(numer / denom))
@@ -284,6 +391,7 @@ def get_sales_table(df: pd.DataFrame) -> List[Dict]:
         .reset_index()
     )
 
+    # Compute percentages before rounding absolute values
     grouped["cmv_pct"] = (
         (grouped["cmv"] / grouped["ingreso_sin_iva"] * 100).round(1).fillna(0)
     )
@@ -291,6 +399,11 @@ def get_sales_table(df: pd.DataFrame) -> List[Dict]:
         (grouped["margen_sin_iva"] / grouped["ingreso_sin_iva"] * 100)
         .round(1)
         .fillna(0)
+    )
+    # Commission % (sin IVA basis) so that CMV% + comision_pct + margen_pct = 100%
+    comision_sin_iva = grouped["comision"] / 1.19
+    grouped["comision_pct"] = (
+        (comision_sin_iva / grouped["ingreso_sin_iva"] * 100).round(1).fillna(0)
     )
 
     for col in [
@@ -303,8 +416,8 @@ def get_sales_table(df: pd.DataFrame) -> List[Dict]:
         grouped[col] = grouped[col].round(0)
 
     grouped = grouped.sort_values("ingreso_sin_iva", ascending=False)
-    grouped["cmv_pct"] = grouped["cmv_pct"].replace([np.inf, -np.inf], 0)
-    grouped["margen_pct"] = grouped["margen_pct"].replace([np.inf, -np.inf], 0)
+    for col in ["cmv_pct", "margen_pct", "comision_pct"]:
+        grouped[col] = grouped[col].replace([np.inf, -np.inf], 0)
     return grouped.to_dict(orient="records")
 
 

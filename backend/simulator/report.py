@@ -145,7 +145,9 @@ def _HR(color=BORDER, t=0.5, sp=4):
 
 
 def _clp(n):
-    return "$" + f"{abs(int(n)):,}".replace(",", ".")
+    n = int(n)
+    sign = "−" if n < 0 else ""
+    return sign + "$" + f"{abs(n):,}".replace(",", ".")
 
 
 def _tbl(data, col_widths, extra_style=None):
@@ -169,42 +171,45 @@ def _kpi_summary_table(kpis):
     ebitda_pct = ebt["ebitda_percentage"]
     ebitda_color = GREEN if ebitda_val >= 0 else RED
 
+    total_ingreso = ing["total_ingreso_sin_iva"]
+    comision_sin_iva = ing["comision_total"] / 1.19
+    comision_pct_total = comision_sin_iva / total_ingreso * 100 if total_ingreso else 0
+    margen_bruto_pct = (
+        ing["total_margen_sin_iva"] / total_ingreso * 100 if total_ingreso else 0
+    )
+
     rows = [
-        ["Concepto", "Valor", "Detalle"],
+        ["Concepto", "Monto (s/IVA)", "Detalle"],
         [
-            "Ingresos (sin IVA)",
-            _clp(ing["total_ingreso_sin_iva"]),
+            "Ingresos brutos sin IVA",
+            _clp(total_ingreso),
             f"con IVA: {_clp(ing['total_ingreso'])}",
         ],
         [
-            "  Comisiones Uber Eats",
-            f"− {_clp(ing['comision_total'])}",
-            "30% sobre ventas Uber",
+            "  Comisión Uber Eats",
+            _clp(-comision_sin_iva),
+            f"{comision_pct_total:.1f}% de ingresos · 30% de pedidos Uber",
         ],
         [
-            "  CMV (ingredientes)",
-            f"{ing['cmv_percentage']:.1f}%",
-            _clp(ing["cmv"]),
+            "  CMV (ingredientes s/IVA)",
+            _clp(-ing["cmv"]),
+            f"{ing['cmv_percentage']:.1f}% de ingresos",
         ],
         [
-            "  Margen bruto FUDO",
-            (
-                f"{(ing['total_margen_sin_iva'] / ing['total_ingreso_sin_iva'] * 100):.1f}%"
-                if ing["total_ingreso_sin_iva"]
-                else "—"
-            ),
+            "  Margen bruto (s/IVA)",
             _clp(ing["total_margen_sin_iva"]),
+            f"{margen_bruto_pct:.1f}% · CMV + Comisión + Margen = 100%",
         ],
-        ["Gastos operacionales", _clp(gas["gastos_totales"]), ""],
+        ["Gastos operacionales", _clp(-gas["gastos_totales"]), ""],
         [
             "  Pagado",
-            _clp(gas["pagados_totales"]),
+            _clp(-gas["pagados_totales"]),
             f"Por pagar: {_clp(gas['por_pagar_totales'])}",
         ],
         [
             "EBITDA",
-            f"{_clp(ebitda_val)}",
-            f"{ebitda_pct:.1f}%",
+            _clp(ebitda_val),
+            f"{ebitda_pct:.1f}% sobre ingresos",
         ],
     ]
     if gas["prestamos_socios"] > 0:
@@ -230,19 +235,21 @@ def _sales_table(df_sales):
     if not rows_data:
         return _P("Sin datos de ventas.", "bodysub")
 
-    rows = [["Producto", "Cant.", "Ingreso s/IVA", "CMV%", "Margen%"]]
+    rows = [["Producto", "Cant.", "Ingreso s/IVA", "CMV%", "Comis.%", "Margen%"]]
     for r in rows_data[:20]:  # cap at 20 rows
+        comis = r.get("comision_pct", 0) or 0
         rows.append(
             [
-                r["Producto"][:38],
+                r["Producto"][:34],
                 str(int(r["cantidad"])),
                 _clp(r["ingreso_sin_iva"]),
                 f"{r['cmv_pct']:.1f}%",
+                f"{comis:.1f}%" if comis > 0 else "—",
                 f"{r['margen_pct']:.1f}%",
             ]
         )
 
-    return _tbl(rows, [W * 0.44, W * 0.08, W * 0.20, W * 0.14, W * 0.14])
+    return _tbl(rows, [W * 0.38, W * 0.08, W * 0.20, W * 0.12, W * 0.10, W * 0.12])
 
 
 # ── Break-even analysis ────────────────────────────────────────────────────────
@@ -265,25 +272,34 @@ def _breakeven_section(kpis, df_sales):
     if total_units == 0:
         return _P("Sin unidades vendidas.", "bodysub")
 
+    total_cmv = df_sales["costo_ingredientes_sin_iva"].sum()
     avg_ingreso_per_unit = total_ingreso / total_units
-    avg_margen_per_unit = ing["total_margen_sin_iva"] / total_units
+    # Contribution = ingreso − ingredient cost only.
+    # Uber Eats commission is not in the expense file (Uber pays net),
+    # so it does not scale with additional units in the EBITDA model.
+    avg_contribution_per_unit = (total_ingreso - total_cmv) / total_units
+    contribution_pct = (
+        avg_contribution_per_unit / avg_ingreso_per_unit * 100
+        if avg_ingreso_per_unit
+        else 0
+    )
 
-    # Break-even: ebitda + x*m = 0  →  x = -ebitda / m
+    # Break-even: ebitda + x*c = 0  →  x = -ebitda / c
     if ebitda >= 0:
         be_units_needed = 0
         be_units_total = int(total_units)
         be_note = "Ya alcanzado"
-    elif avg_margen_per_unit > 0:
-        be_units_needed = math.ceil(-ebitda / avg_margen_per_unit)
+    elif avg_contribution_per_unit > 0:
+        be_units_needed = math.ceil(-ebitda / avg_contribution_per_unit)
         be_units_total = int(total_units) + be_units_needed
         be_note = ""
     else:
         return _P(
-            "El margen por unidad es negativo. Revisar precios y costos.", "bodysub"
+            "Contribución por unidad negativa. Revisar precios y costos.", "bodysub"
         )
 
-    # 25% EBITDA: x = (0.25*I - ebitda) / (m - 0.25*i)
-    denom_25 = avg_margen_per_unit - 0.25 * avg_ingreso_per_unit
+    # 25% EBITDA: x = (0.25*I - ebitda) / (c - 0.25*i)
+    denom_25 = avg_contribution_per_unit - 0.25 * avg_ingreso_per_unit
     if ebt["ebitda_percentage"] >= 25:
         t25_units_needed = 0
         t25_units_total = int(total_units)
@@ -312,7 +328,7 @@ def _breakeven_section(kpis, df_sales):
             f"{int(total_units):,}",
             _clp(total_ingreso),
             _clp(total_ingreso * 1.19),
-            f"EBITDA {ebt['ebitda_percentage']:.1f}%",
+            f"EBITDA {ebt['ebitda_percentage']:.1f}% · ticket {_clp(avg_ingreso_per_unit)} · contrib. {contribution_pct:.1f}%",
         ],
         [
             "Break-even (EBITDA = 0)",
@@ -337,6 +353,126 @@ def _breakeven_section(kpis, df_sales):
         ("TEXTCOLOR", (1, 3), (-1, 3), GREEN),
     ]
     return _tbl(rows, [W * 0.30, W * 0.14, W * 0.18, W * 0.18, W * 0.20], extra)
+
+
+# ── Expenses breakdown by category ────────────────────────────────────────────
+
+
+def _expenses_breakdown(df_expenses, sales_months):
+    df = df_expenses[df_expenses["Cancelado"] == "No"].copy()
+    df["Fecha"] = pd.to_datetime(df["Fecha"], errors="coerce")
+    df = df[df["Fecha"].dt.to_period("M").isin(sales_months)]
+
+    is_loan = df["Proveedor"].str.contains("Prestamo", case=False, na=False)
+    is_capex = df["Categoría"] == "Activo Fijo"
+    df_ops = df[~is_loan & ~is_capex]
+
+    if df_ops.empty:
+        return _P("Sin gastos operacionales para el período.", "bodysub")
+
+    by_cat = df_ops.groupby("Categoría")["Importe"].sum().sort_values(ascending=False)
+    total = by_cat.sum()
+
+    rows = [["Categoría", "Importe", "% del total", "Pagado", "Por pagar"]]
+    for cat, amount in by_cat.items():
+        paid = df_ops[
+            (df_ops["Categoría"] == cat) & (df_ops["Estado del pago"] == "Pagado")
+        ]["Importe"].sum()
+        pending = df_ops[
+            (df_ops["Categoría"] == cat) & (df_ops["Estado del pago"] == "A pagar")
+        ]["Importe"].sum()
+        pct = amount / total * 100 if total else 0
+        rows.append(
+            [
+                cat,
+                _clp(amount),
+                f"{pct:.1f}%",
+                _clp(paid) if paid else "—",
+                _clp(pending) if pending else "—",
+            ]
+        )
+    rows.append(["TOTAL", _clp(total), "100%", "", ""])
+
+    extra = [
+        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+        ("BACKGROUND", (0, -1), (-1, -1), CARD_BG),
+    ]
+    return _tbl(rows, [W * 0.32, W * 0.18, W * 0.12, W * 0.19, W * 0.19], extra)
+
+
+# ── Payables aging ─────────────────────────────────────────────────────────────
+
+
+def _payables_aging(df_expenses, sales_months):
+    df = df_expenses[df_expenses["Cancelado"] == "No"].copy()
+    df["Fecha"] = pd.to_datetime(df["Fecha"], errors="coerce")
+    df = df[df["Fecha"].dt.to_period("M").isin(sales_months)]
+
+    is_loan = df["Proveedor"].str.contains("Prestamo", case=False, na=False)
+    is_capex = df["Categoría"] == "Activo Fijo"
+    df_ops = df[~is_loan & ~is_capex]
+    df_pending = df_ops[df_ops["Estado del pago"] == "A pagar"].copy()
+
+    if df_pending.empty:
+        return _P("Sin deudas pendientes de pago.", "bodysub")
+
+    df_pending["Fecha de vencimiento"] = pd.to_datetime(
+        df_pending["Fecha de vencimiento"], errors="coerce"
+    )
+    today = datetime.date.today()
+
+    def _bucket(row):
+        due = row["Fecha de vencimiento"]
+        if pd.isna(due):
+            return "Sin fecha de vencimiento"
+        days = (due.date() - today).days
+        if days < 0:
+            return "Vencido"
+        if days <= 30:
+            return "0–30 días"
+        if days <= 60:
+            return "31–60 días"
+        if days <= 90:
+            return "61–90 días"
+        return "> 90 días"
+
+    df_pending["bucket"] = df_pending.apply(_bucket, axis=1)
+
+    bucket_order = [
+        "Vencido",
+        "0–30 días",
+        "31–60 días",
+        "61–90 días",
+        "> 90 días",
+        "Sin fecha de vencimiento",
+    ]
+
+    rows = [["Vencimiento", "Monto", "N°", "Proveedores principales"]]
+    for bucket in bucket_order:
+        subset = df_pending[df_pending["bucket"] == bucket]
+        if subset.empty:
+            continue
+        amount = subset["Importe"].sum()
+        top_provs = (
+            subset.groupby("Proveedor")["Importe"].sum().nlargest(2).index.tolist()
+        )
+        prov_str = ", ".join(top_provs)[:40]
+        rows.append([bucket, _clp(amount), str(len(subset)), prov_str])
+
+    total_pending = df_pending["Importe"].sum()
+    rows.append(["TOTAL POR PAGAR", _clp(total_pending), str(len(df_pending)), ""])
+
+    extra = [
+        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
+        ("BACKGROUND", (0, -1), (-1, -1), CARD_BG),
+    ]
+    # Highlight overdue row in red
+    for i, row in enumerate(rows[1:], 1):
+        if row[0] == "Vencido":
+            extra.append(("TEXTCOLOR", (0, i), (1, i), RED))
+            extra.append(("FONTNAME", (0, i), (1, i), "Helvetica-Bold"))
+
+    return _tbl(rows, [W * 0.26, W * 0.20, W * 0.08, W * 0.46], extra)
 
 
 # ── Main builder ──────────────────────────────────────────────────────────────
@@ -365,6 +501,7 @@ def build_financial_report(
         df = df[df["created_at"].dt.to_period("M").astype(str) == month]
 
     kpis = kpi_calculations(df, df_expenses)
+    sales_months = df["created_at"].dt.to_period("M").unique()
 
     month_label = month or "Todos los meses"
     generated_at = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
@@ -421,6 +558,31 @@ def build_financial_report(
             "Break-even: unidades adicionales necesarias para que el EBITDA sea ≥ 0. "
             "EBITDA 25%: unidades adicionales para alcanzar un margen del 25%. "
             "Los ingresos 'c/IVA' representan el valor en caja (× 1.19).",
+            "info",
+        ),
+        Spacer(1, 0.4 * cm),
+    ]
+
+    # ── Expenses breakdown ─────────────────────────────────────────────────────
+    story += [
+        _P("Composición de Gastos Operacionales", "section"),
+        _HR(),
+        Spacer(1, 0.15 * cm),
+        _expenses_breakdown(df_expenses, sales_months),
+        Spacer(1, 0.4 * cm),
+    ]
+
+    # ── Payables aging ─────────────────────────────────────────────────────────
+    story += [
+        _P("Aging de Cuentas por Pagar", "section"),
+        _HR(),
+        Spacer(1, 0.15 * cm),
+        _payables_aging(df_expenses, sales_months),
+        Spacer(1, 0.2 * cm),
+        _P(
+            "Referencia: vencimientos calculados al "
+            + datetime.date.today().strftime("%d/%m/%Y")
+            + ". Proveedores principales = los 2 de mayor monto por tramo.",
             "info",
         ),
         Spacer(1, 0.4 * cm),
