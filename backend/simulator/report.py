@@ -230,13 +230,19 @@ def _kpi_summary_table(kpis):
 # ── Sales by product table ─────────────────────────────────────────────────────
 
 
-def _sales_table(df_sales):
+def _sales_table(df_sales, categoria=None):
     rows_data = get_sales_table(df_sales)
     if not rows_data:
         return _P("Sin datos de ventas.", "bodysub")
 
+    if categoria:
+        rows_data = [r for r in rows_data if r.get("Categoría") == categoria]
+
+    if not rows_data:
+        return _P(f"Sin datos para la categoría '{categoria}'.", "bodysub")
+
     rows = [["Producto", "Cant.", "Ingreso s/IVA", "CMV%", "Comis.%", "Margen%"]]
-    for r in rows_data[:20]:  # cap at 20 rows
+    for r in rows_data[:20]:
         comis = r.get("comision_pct", 0) or 0
         rows.append(
             [
@@ -588,12 +594,21 @@ def build_financial_report(
         Spacer(1, 0.4 * cm),
     ]
 
-    # ── Sales by product ───────────────────────────────────────────────────────
+    # ── Sales by product — Especialidades ─────────────────────────────────────
     story += [
-        _P("Ventas por Producto (top 20)", "section"),
+        _P("Ventas por Producto — Especialidades (top 20)", "section"),
         _HR(),
         Spacer(1, 0.15 * cm),
-        _sales_table(df),
+        _sales_table(df, categoria="Especialidades"),
+        Spacer(1, 0.4 * cm),
+    ]
+
+    # ── Sales by product — Extras ──────────────────────────────────────────────
+    story += [
+        _P("Ventas por Producto — Extras (top 20)", "section"),
+        _HR(),
+        Spacer(1, 0.15 * cm),
+        _sales_table(df, categoria="Extras"),
         Spacer(1, 0.4 * cm),
     ]
 

@@ -219,31 +219,69 @@ const ChartsSection = ({ salesLoaded, selectedMonth }) => {
                 ),
               },
               {
-                key: "topQty",
-                title: "Top 10 Productos por Unidades Vendidas",
+                key: "topQtyEsp",
+                title: "Top 10 Especialidades por Unidades",
                 card: (
                   <TopProductsByQuantity
-                    top10Quantity={chartData.top10_quantity}
+                    top10Quantity={chartData.top10_quantity_especialidades}
+                    title="Top 10 Especialidades por Unidades"
                   />
                 ),
                 modal: (
                   <TopProductsByQuantity
-                    top10Quantity={chartData.top10_quantity}
+                    top10Quantity={chartData.top10_quantity_especialidades}
+                    title="Top 10 Especialidades por Unidades"
                     height={MODAL_CHART_HEIGHT}
                   />
                 ),
               },
               {
-                key: "topRev",
-                title: "Top 10 Productos por Ingresos (sin IVA)",
+                key: "topRevEsp",
+                title: "Top 10 Especialidades por Ingresos (sin IVA)",
                 card: (
                   <TopProductsByRevenue
-                    top10Revenue={chartData.top10_revenue}
+                    top10Revenue={chartData.top10_revenue_especialidades}
+                    title="Top 10 Especialidades por Ingresos (sin IVA)"
                   />
                 ),
                 modal: (
                   <TopProductsByRevenue
-                    top10Revenue={chartData.top10_revenue}
+                    top10Revenue={chartData.top10_revenue_especialidades}
+                    title="Top 10 Especialidades por Ingresos (sin IVA)"
+                    height={MODAL_CHART_HEIGHT}
+                  />
+                ),
+              },
+              {
+                key: "topQtyExt",
+                title: "Top 10 Extras por Unidades",
+                card: (
+                  <TopProductsByQuantity
+                    top10Quantity={chartData.top10_quantity_extras}
+                    title="Top 10 Extras por Unidades"
+                  />
+                ),
+                modal: (
+                  <TopProductsByQuantity
+                    top10Quantity={chartData.top10_quantity_extras}
+                    title="Top 10 Extras por Unidades"
+                    height={MODAL_CHART_HEIGHT}
+                  />
+                ),
+              },
+              {
+                key: "topRevExt",
+                title: "Top 10 Extras por Ingresos (sin IVA)",
+                card: (
+                  <TopProductsByRevenue
+                    top10Revenue={chartData.top10_revenue_extras}
+                    title="Top 10 Extras por Ingresos (sin IVA)"
+                  />
+                ),
+                modal: (
+                  <TopProductsByRevenue
+                    top10Revenue={chartData.top10_revenue_extras}
+                    title="Top 10 Extras por Ingresos (sin IVA)"
                     height={MODAL_CHART_HEIGHT}
                   />
                 ),

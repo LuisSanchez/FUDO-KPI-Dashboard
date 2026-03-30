@@ -3,7 +3,11 @@ import { Bar } from "react-chartjs-2";
 import { Box, Typography } from "@mui/material";
 import { horizontalBaseOptions, COLORS, PALETTE, CLP } from "./chartConfig";
 
-const TopProductsByRevenue = ({ top10Revenue, height = 320 }) => {
+const TopProductsByRevenue = ({
+  top10Revenue,
+  height = 320,
+  title = "Top 10 Productos por Ingresos (sin IVA)",
+}) => {
   const sorted = useMemo(
     () =>
       [...top10Revenue].sort((a, b) => a.ingreso_sin_iva - b.ingreso_sin_iva),
@@ -80,7 +84,7 @@ const TopProductsByRevenue = ({ top10Revenue, height = 320 }) => {
   return (
     <Box>
       <Typography variant="subtitle2" sx={{ mb: 2 }}>
-        Top 10 Productos por Ingresos (sin IVA)
+        {title}
       </Typography>
       <Box sx={{ height }}>
         <Bar data={data} options={options} />

@@ -123,8 +123,28 @@ def sales_clean_up_data(df: pd.DataFrame) -> pd.DataFrame:
     cost_lookup = _build_cost_lookup(df)
     df = _impute_zero_costs(df, cost_lookup)
 
+    # ── Patch: FUDO did not backfill costs for these products in March 2026.
+    # At least one sale row has the correct cost; use the highest per-unit value found.
+    _PATCH_PRODUCTS = ["Pizza Napoli", "Pizza Veggie G"]
+    _PATCH_PERIOD = "2026-03"
+    _creation_period = (
+        pd.to_datetime(df["Creación"], errors="coerce").dt.to_period("M").astype(str)
+    )
+    for _prod in _PATCH_PRODUCTS:
+        _in_period = (_creation_period == _PATCH_PERIOD) & (df["Producto"] == _prod)
+        _valid = df[_in_period & (df["Costo base"] > 0)]
+        if not _valid.empty:
+            _best_unit_cost = (
+                _valid["Costo base"] / _valid["Cantidad"].replace(0, 1)
+            ).max()
+            _zero_mask = _in_period & (df["Costo base"] == 0)
+            df.loc[_zero_mask, "Costo base"] = (
+                _best_unit_cost * df.loc[_zero_mask, "Cantidad"]
+            )
+
     # if Producto column is 'Duo Familiar (2pizzas)' set Costo modificadores to 0
     df.loc[df["Producto"] == "Duo Familiar (2pizzas)", "Costo modificadores"] = 0
+    df.loc[df["Producto"] == "Lunes de Duo 2x1", "Costo modificadores"] = 0
 
     df["precio_unitario"] = df["Precio"] / df["Cantidad"]
     df["costo_unitario"] = df["Costo base"] / df["Cantidad"]
@@ -493,20 +513,38 @@ def get_chart_data(df: pd.DataFrame) -> Dict[str, Any]:
         .round(0)
     )
 
-    # 3 & 4 & 5 & 6. Per-product aggregation
-    by_product = (
-        df.groupby("Producto")
+    # 3 & 4 & 5 & 6. Per-product aggregation (with Categoría for category splits)
+    by_product_cat = (
+        df.groupby(["Producto", "Categoría"])
         .agg(cantidad=("Cantidad", "sum"), ingreso_sin_iva=("ingreso_sin_iva", "sum"))
         .reset_index()
     )
-    by_product["ingreso_sin_iva"] = by_product["ingreso_sin_iva"].round(0)
+    by_product_cat["ingreso_sin_iva"] = by_product_cat["ingreso_sin_iva"].round(0)
 
-    top10_qty = by_product.nlargest(10, "cantidad")[["Producto", "cantidad"]].to_dict(
-        orient="records"
+    # Rolled-up totals (for pie / scatter which don't need category)
+    by_product = (
+        by_product_cat.groupby("Producto")
+        .agg(cantidad=("cantidad", "sum"), ingreso_sin_iva=("ingreso_sin_iva", "sum"))
+        .reset_index()
     )
-    top10_rev = by_product.nlargest(10, "ingreso_sin_iva")[
-        ["Producto", "ingreso_sin_iva"]
-    ].to_dict(orient="records")
+
+    def _top10(sub, metric):
+        return [
+            {"Producto": r["Producto"], metric: float(r[metric])}
+            for r in sub.nlargest(10, metric)[["Producto", metric]].to_dict(
+                orient="records"
+            )
+        ]
+
+    esp = by_product_cat[by_product_cat["Categoría"] == "Especialidades"]
+    ext = by_product_cat[by_product_cat["Categoría"] == "Extras"]
+
+    top10_qty = _top10(by_product, "cantidad")
+    top10_rev = _top10(by_product, "ingreso_sin_iva")
+    top10_qty_esp = _top10(esp, "cantidad")
+    top10_rev_esp = _top10(esp, "ingreso_sin_iva")
+    top10_qty_ext = _top10(ext, "cantidad")
+    top10_rev_ext = _top10(ext, "ingreso_sin_iva")
 
     # Pie: top 10 + "Otros"
     top10_pie = by_product.nlargest(10, "cantidad")
@@ -538,14 +576,12 @@ def get_chart_data(df: pd.DataFrame) -> Dict[str, Any]:
             "count": [int(weekday_count[d]) for d in range(7)],
             "revenue": [float(weekday_revenue[d]) for d in range(7)],
         },
-        "top10_quantity": [
-            {"Producto": r["Producto"], "cantidad": float(r["cantidad"])}
-            for r in top10_qty
-        ],
-        "top10_revenue": [
-            {"Producto": r["Producto"], "ingreso_sin_iva": float(r["ingreso_sin_iva"])}
-            for r in top10_rev
-        ],
+        "top10_quantity": top10_qty,
+        "top10_revenue": top10_rev,
+        "top10_quantity_especialidades": top10_qty_esp,
+        "top10_revenue_especialidades": top10_rev_esp,
+        "top10_quantity_extras": top10_qty_ext,
+        "top10_revenue_extras": top10_rev_ext,
         "pie_quantity": {"labels": pie_labels, "values": pie_values},
         "scatter": [
             {

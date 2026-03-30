@@ -3,7 +3,11 @@ import { Bar } from "react-chartjs-2";
 import { Box, Typography } from "@mui/material";
 import { horizontalBaseOptions, COLORS, PALETTE } from "./chartConfig";
 
-const TopProductsByQuantity = ({ top10Quantity, height = 320 }) => {
+const TopProductsByQuantity = ({
+  top10Quantity,
+  height = 320,
+  title = "Top 10 Productos por Unidades Vendidas",
+}) => {
   const sorted = useMemo(
     () => [...top10Quantity].sort((a, b) => a.cantidad - b.cantidad),
     [top10Quantity],
@@ -75,7 +79,7 @@ const TopProductsByQuantity = ({ top10Quantity, height = 320 }) => {
   return (
     <Box>
       <Typography variant="subtitle2" sx={{ mb: 2 }}>
-        Top 10 Productos por Unidades Vendidas
+        {title}
       </Typography>
       <Box sx={{ height }}>
         <Bar data={data} options={options} />
