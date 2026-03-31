@@ -44,7 +44,7 @@ build:
 	docker build -t omp .
 	make up
 
-make rebuild:
+rebuild:
 	docker stop omp && docker rm omp
 	docker build --no-cache -t omp .
 	make up

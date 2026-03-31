@@ -671,8 +671,8 @@ def simulate_price_cost(
     Simulate the EBITDA impact of two simultaneous changes using the current
     period data as the baseline:
 
-    - price_increase_clp: consumer price increase per pizza (CLP con IVA).
-      Applied to every unit sold → extra revenue = units × (price_increase / 1.19).
+    - price_increase_clp: consumer price increase per unit (CLP con IVA).
+      Applied only to Especialidades → extra revenue = esp_units × (price_increase / 1.19).
     - cost_increase_pct: percentage increase on ingredient costs (CMV).
       Applied to total ingredient cost → extra cost = total_cmv × (pct / 100).
 
@@ -685,6 +685,9 @@ def simulate_price_cost(
     total_units = float(df["Cantidad"].sum())
     total_ingreso_sin_iva = float(df["ingreso_sin_iva"].sum())
     total_costo_ing_sin_iva = float(df["costo_ingredientes_sin_iva"].sum())
+
+    # Price increase applies only to Especialidades
+    esp_units = float(df.loc[df["Categoría"] == "Especialidades", "Cantidad"].sum())
 
     # Replicate the operational expense filter from kpi_calculations
     df_exp = df_expenses[df_expenses["Cancelado"] == "No"].copy()
@@ -702,8 +705,8 @@ def simulate_price_cost(
         else 0
     )
 
-    # Price impact: each of the existing units now earns more (sin IVA)
-    revenue_delta = total_units * (price_increase_clp / 1.19)
+    # Price impact: only Especialidades units earn more (sin IVA)
+    revenue_delta = esp_units * (price_increase_clp / 1.19)
     # Cost impact: ingredient costs rise by cost_increase_pct %
     cost_delta = total_costo_ing_sin_iva * (cost_increase_pct / 100)
 
@@ -713,14 +716,21 @@ def simulate_price_cost(
         (projected_ebitda / projected_ingreso * 100) if projected_ingreso > 0 else 0
     )
 
-    avg_price_sin_iva = total_ingreso_sin_iva / total_units if total_units > 0 else 0
-    avg_price_sin_iva_new = projected_ingreso / total_units if total_units > 0 else 0
+    # Average price uses Especialidades units for the price-increase rows
+    esp_ingreso_sin_iva = float(
+        df.loc[df["Categoría"] == "Especialidades", "ingreso_sin_iva"].sum()
+    )
+    avg_price_sin_iva = esp_ingreso_sin_iva / esp_units if esp_units > 0 else 0
+    avg_price_sin_iva_new = (
+        (esp_ingreso_sin_iva + revenue_delta) / esp_units if esp_units > 0 else 0
+    )
 
     def r(v):
         return float(round(v, 0))
 
     return {
         "units_sold": int(total_units),
+        "esp_units_sold": int(esp_units),
         "current_ingreso_sin_iva": r(total_ingreso_sin_iva),
         "current_ebitda": r(current_ebitda),
         "current_ebitda_pct": round(current_ebitda_pct, 1),

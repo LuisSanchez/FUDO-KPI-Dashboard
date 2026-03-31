@@ -237,7 +237,7 @@ const PriceCostSimulator = ({ salesLoaded, expensesLoaded, selectedMonth }) => {
       <Box sx={{ display: "flex", gap: 4, flexWrap: "wrap", mb: 3 }}>
         <Box sx={{ flex: "1 1 260px", minWidth: 0 }}>
           <SliderInput
-            label="Aumento de precio por pizza (con IVA)"
+            label="Aumento de precio por Especialidad (con IVA)"
             value={priceIncrease}
             onChange={setPriceIncrease}
             min={0}
@@ -446,7 +446,7 @@ const PriceCostSimulator = ({ salesLoaded, expensesLoaded, selectedMonth }) => {
             highlight
           />
           <CompareRow
-            label={`Precio prom. por unidad (${data.units_sold.toLocaleString("es-CL")} uds.)`}
+            label={`Precio prom. Especialidades (${(data.esp_units_sold ?? data.units_sold).toLocaleString("es-CL")} uds.)`}
             current={data.avg_price_clp_current}
             projected={data.avg_price_clp_projected}
             formatter={CLP}
