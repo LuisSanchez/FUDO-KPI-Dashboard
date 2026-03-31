@@ -19,6 +19,7 @@ from .data_processing import (
     get_chart_data,
     get_product_prices_table,
     simulate_price_cost,
+    get_sales_excel,
 )
 
 
@@ -401,5 +402,49 @@ def download_report(request):
     except Exception as e:
         return Response(
             {"error": f"Error generating report: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["GET"])
+def download_excel(request):
+    """Download an Excel file with all sales calculations for a given category."""
+    VALID_CATEGORIES = ["Especialidades", "Extras"]
+    categoria = request.query_params.get("categoria", "")
+    if categoria not in VALID_CATEGORIES:
+        return Response(
+            {"error": f"categoria must be one of {VALID_CATEGORIES}"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    store = _get_store(request)
+    if store.sales_df_pickle is None:
+        return Response(
+            {"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    month = request.query_params.get("month")
+
+    try:
+        df_sales = _load_df(store.sales_df_pickle).copy()
+        if month:
+            df_sales = df_sales[
+                df_sales["created_at"].dt.to_period("M").astype(str) == month
+            ]
+
+        xlsx_bytes = get_sales_excel(df_sales, categoria)
+
+        suffix = f"-{month}" if month else ""
+        filename = f"ventas-{categoria.lower()}{suffix}.xlsx"
+        content_type = (
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        response = HttpResponse(xlsx_bytes, content_type=content_type)
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response
+
+    except Exception as e:
+        return Response(
+            {"error": f"Error generating Excel: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )

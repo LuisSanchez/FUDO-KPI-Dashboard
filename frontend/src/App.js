@@ -14,6 +14,7 @@ import ExpensesTableModal from "./components/ExpensesTableModal";
 import ProductPricesModal from "./components/ProductPricesModal";
 import { useTour } from "./hooks/useTour";
 import useDownloadPdf from "./hooks/useDownloadPdf";
+import useDownloadExcel from "./hooks/useDownloadExcel";
 import { CLP, fmtMonth, CURRENT_MONTH, cmvColor } from "./utils/formatters";
 import theme from "./theme";
 import {
@@ -70,6 +71,10 @@ export default function App() {
 
   const { startTour } = useTour(bothUploaded);
   const { handleDownloadPdf, pdfLoading } = useDownloadPdf(
+    selectedMonth,
+    (msg) => setToast({ open: true, message: msg }),
+  );
+  const { downloadExcel, excelLoading } = useDownloadExcel(
     selectedMonth,
     (msg) => setToast({ open: true, message: msg }),
   );
@@ -253,10 +258,12 @@ export default function App() {
         bothUploaded={bothUploaded}
         hasAnyFile={!!(salesFile || expensesFile)}
         pdfLoading={pdfLoading}
+        excelLoading={excelLoading}
         onOpenSalesTable={openSalesTable}
         onOpenExpensesTable={openExpensesTable}
         onOpenPricesTable={openPricesTable}
         onDownloadPdf={handleDownloadPdf}
+        onDownloadExcel={downloadExcel}
         onOpenHelp={() => setHelpOpen(true)}
         onStartTour={startTour}
         onReset={handleReset}

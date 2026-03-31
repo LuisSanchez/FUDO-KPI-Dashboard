@@ -15,4 +15,5 @@ urlpatterns = [
     ),
     path("reset/", views.reset_data, name="reset_data"),
     path("report/pdf/", views.download_report, name="download_report"),
+    path("report/excel/", views.download_excel, name="download_excel"),
 ]
