@@ -14,10 +14,13 @@ import {
   TableCell,
   TableRow,
   TableSortLabel,
+  TextField,
+  InputAdornment,
   Tooltip,
 } from "@mui/material";
 import TableChartIcon from "@mui/icons-material/TableChart";
 import CloseIcon from "@mui/icons-material/Close";
+import SearchIcon from "@mui/icons-material/Search";
 import { CLP, fmtMonth, cmvColor } from "../utils/formatters";
 
 const COLS = [
@@ -38,6 +41,7 @@ const pct = (num, denom) =>
 const SalesTableModal = ({ open, onClose, data, month }) => {
   const [orderBy, setOrderBy] = useState("ingreso_sin_iva");
   const [order, setOrder] = useState("desc");
+  const [search, setSearch] = useState("");
 
   const handleSort = (col) => {
     if (orderBy === col) setOrder((o) => (o === "asc" ? "desc" : "asc"));
@@ -47,9 +51,21 @@ const SalesTableModal = ({ open, onClose, data, month }) => {
     }
   };
 
-  const sorted = [...(data || [])].sort((a, b) =>
-    order === "asc" ? a[orderBy] - b[orderBy] : b[orderBy] - a[orderBy],
+  const q = search.trim().toLowerCase();
+  const filtered = (data || []).filter(
+    (r) =>
+      !q ||
+      r.Producto.toLowerCase().includes(q) ||
+      r.Categoría.toLowerCase().includes(q),
   );
+
+  const sorted = [...filtered].sort((a, b) => {
+    const av = a[orderBy],
+      bv = b[orderBy];
+    if (typeof av === "string")
+      return order === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+    return order === "asc" ? av - bv : bv - av;
+  });
 
   const totals = sorted.reduce(
     (acc, r) => ({
@@ -94,14 +110,33 @@ const SalesTableModal = ({ open, onClose, data, month }) => {
             {month && month !== "all" ? ` — ${fmtMonth(month)}` : ""}
           </Typography>
           <Chip
-            label={`${sorted.length} productos`}
+            label={`${sorted.length} / ${(data || []).length} productos`}
             size="small"
             variant="outlined"
           />
         </Box>
-        <IconButton onClick={onClose} size="small">
-          <CloseIcon fontSize="small" />
-        </IconButton>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <TextField
+            size="small"
+            placeholder="Buscar producto o categoría…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+                </InputAdornment>
+              ),
+            }}
+            sx={{
+              width: 240,
+              "& .MuiOutlinedInput-root": { fontSize: "0.8rem" },
+            }}
+          />
+          <IconButton onClick={onClose} size="small">
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Box>
       </DialogTitle>
 
       <DialogContent sx={{ p: 0 }}>
@@ -114,8 +149,7 @@ const SalesTableModal = ({ open, onClose, data, month }) => {
                     <TableSortLabel
                       active={orderBy === c.id}
                       direction={orderBy === c.id ? order : "desc"}
-                      onClick={() => c.numeric && handleSort(c.id)}
-                      hideSortIcon={!c.numeric}
+                      onClick={() => handleSort(c.id)}
                     >
                       {c.label}
                     </TableSortLabel>

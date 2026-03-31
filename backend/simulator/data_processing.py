@@ -605,6 +605,14 @@ def get_product_prices_table(df: pd.DataFrame) -> List[Dict]:
     ].replace(0, 1)
     df["precio_neto_per_unit"] = df["precio_unitario"] / 1.19
 
+    # Average Uber Eats price per product (from uber_eats rows only)
+    uber_avg_precio = (
+        df[df["Creada por"] == "uber_eats"]
+        .groupby("Producto")["precio_unitario"]
+        .mean()
+        .round(0)
+    )
+
     grouped = (
         df.groupby(["Producto", "Categoría"])
         .agg(
@@ -615,6 +623,10 @@ def get_product_prices_table(df: pd.DataFrame) -> List[Dict]:
             tiene_uber_eats=("Creada por", lambda x: bool((x == "uber_eats").any())),
         )
         .reset_index()
+    )
+
+    grouped["avg_precio_uber_eats"] = (
+        grouped["Producto"].map(uber_avg_precio).fillna(0).round(0)
     )
 
     grouped["avg_iva"] = grouped["avg_precio"] - grouped["avg_precio_neto"]
@@ -638,6 +650,7 @@ def get_product_prices_table(df: pd.DataFrame) -> List[Dict]:
         "avg_iva",
         "avg_costo_neto",
         "margen_bruto",
+        "avg_precio_uber_eats",
     ]:
         grouped[col] = grouped[col].round(0)
 
@@ -656,6 +669,7 @@ def get_product_prices_table(df: pd.DataFrame) -> List[Dict]:
             "margen_bruto": float(row["margen_bruto"]),
             "pct_margen_bruto": float(row["pct_margen_bruto"]),
             "tiene_uber_eats": bool(row["tiene_uber_eats"]),
+            "avg_precio_uber_eats": float(row["avg_precio_uber_eats"]),
         }
         for _, row in grouped.iterrows()
     ]
@@ -770,9 +784,7 @@ def get_sales_excel(df: pd.DataFrame, categoria: str) -> bytes:
         "margen_pct": "Margen (%)",
     }
 
-    export_df = pd.DataFrame(
-        [{col_map[k]: r[k] for k in col_map} for r in rows]
-    )
+    export_df = pd.DataFrame([{col_map[k]: r[k] for k in col_map} for r in rows])
 
     buf = io.BytesIO()
     export_df.to_excel(buf, index=False, engine="openpyxl")

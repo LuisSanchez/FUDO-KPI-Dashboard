@@ -136,21 +136,33 @@ const AppNavBar = ({
               }}
             >
               <MenuItem
-                onClick={() => { onDownloadPdf(); closeMenu(); }}
+                onClick={() => {
+                  onDownloadPdf();
+                  closeMenu();
+                }}
                 sx={{ gap: 1 }}
               >
-                <PictureAsPdfIcon fontSize="small" sx={{ color: "primary.main" }} />
+                <PictureAsPdfIcon
+                  fontSize="small"
+                  sx={{ color: "primary.main" }}
+                />
                 Reporte del Mes
               </MenuItem>
               <MenuItem
-                onClick={() => { onDownloadExcel("Especialidades"); closeMenu(); }}
+                onClick={() => {
+                  onDownloadExcel("Especialidades");
+                  closeMenu();
+                }}
                 sx={{ gap: 1 }}
               >
                 <TableViewIcon fontSize="small" sx={{ color: "#22C55E" }} />
                 Especialidades (Excel)
               </MenuItem>
               <MenuItem
-                onClick={() => { onDownloadExcel("Extras"); closeMenu(); }}
+                onClick={() => {
+                  onDownloadExcel("Extras");
+                  closeMenu();
+                }}
                 sx={{ gap: 1 }}
               >
                 <TableViewIcon fontSize="small" sx={{ color: "#38BDF8" }} />

@@ -14,9 +14,12 @@ import {
   TableCell,
   TableRow,
   TableSortLabel,
+  TextField,
+  InputAdornment,
 } from "@mui/material";
 import PriceCheckIcon from "@mui/icons-material/PriceCheck";
 import CloseIcon from "@mui/icons-material/Close";
+import SearchIcon from "@mui/icons-material/Search";
 import { CLP, fmtMonth, cmvColor } from "../utils/formatters";
 
 const COLS = [
@@ -24,6 +27,7 @@ const COLS = [
   { id: "Categoría", label: "Categoría", numeric: false },
   { id: "cantidad", label: "Cant.", numeric: true },
   { id: "avg_precio", label: "Precio (c/IVA)", numeric: true },
+  { id: "avg_precio_uber_eats", label: "Precio Uber Eats", numeric: true },
   { id: "avg_iva", label: "IVA", numeric: true },
   { id: "avg_precio_neto", label: "Precio neto", numeric: true },
   { id: "avg_costo_neto", label: "Costo neto", numeric: true },
@@ -35,9 +39,23 @@ const COLS = [
 const marginColor = (pct) =>
   pct >= 60 ? "success" : pct >= 40 ? "warning" : "error";
 
+const CHANNEL_FILTERS = [
+  { key: "all", label: "Todos" },
+  { key: "uber_eats", label: "Uber Eats" },
+  { key: "local", label: "Solo local" },
+];
+
 const ProductPricesModal = ({ open, onClose, data, month }) => {
   const [orderBy, setOrderBy] = useState("avg_precio_neto");
   const [order, setOrder] = useState("desc");
+  const [search, setSearch] = useState("");
+  const [channel, setChannel] = useState("all");
+  const [categoria, setCategoria] = useState("all");
+
+  const categories = [
+    "all",
+    ...Array.from(new Set((data || []).map((r) => r.Categoría))).sort(),
+  ];
 
   const handleSort = (col) => {
     if (orderBy === col) setOrder((o) => (o === "asc" ? "desc" : "asc"));
@@ -47,7 +65,16 @@ const ProductPricesModal = ({ open, onClose, data, month }) => {
     }
   };
 
-  const sorted = [...(data || [])].sort((a, b) => {
+  const q = search.trim().toLowerCase();
+  const filtered = (data || []).filter((r) => {
+    if (q && !r.Producto.toLowerCase().includes(q)) return false;
+    if (channel === "uber_eats" && !r.tiene_uber_eats) return false;
+    if (channel === "local" && r.tiene_uber_eats) return false;
+    if (categoria !== "all" && r.Categoría !== categoria) return false;
+    return true;
+  });
+
+  const sorted = [...filtered].sort((a, b) => {
     const av = a[orderBy],
       bv = b[orderBy];
     if (typeof av === "string")
@@ -83,15 +110,80 @@ const ProductPricesModal = ({ open, onClose, data, month }) => {
             {month && month !== "all" ? ` — ${fmtMonth(month)}` : ""}
           </Typography>
           <Chip
-            label={`${sorted.length} productos`}
+            label={`${sorted.length} / ${(data || []).length} productos`}
             size="small"
             variant="outlined"
           />
         </Box>
-        <IconButton onClick={onClose} size="small">
-          <CloseIcon fontSize="small" />
-        </IconButton>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <TextField
+            size="small"
+            placeholder="Buscar producto…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+                </InputAdornment>
+              ),
+            }}
+            sx={{
+              width: 200,
+              "& .MuiOutlinedInput-root": { fontSize: "0.8rem" },
+            }}
+          />
+          <IconButton onClick={onClose} size="small">
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Box>
       </DialogTitle>
+
+      {/* Filters row */}
+      <Box
+        sx={{
+          px: 2,
+          pb: 1,
+          display: "flex",
+          alignItems: "center",
+          gap: 2,
+          flexWrap: "wrap",
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Typography variant="caption" color="text.secondary">
+            Canal:
+          </Typography>
+          {CHANNEL_FILTERS.map((f) => (
+            <Chip
+              key={f.key}
+              label={f.label}
+              size="small"
+              onClick={() => setChannel(f.key)}
+              variant={channel === f.key ? "filled" : "outlined"}
+              color={channel === f.key ? "primary" : "default"}
+              sx={{ cursor: "pointer" }}
+            />
+          ))}
+        </Box>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Typography variant="caption" color="text.secondary">
+            Categoría:
+          </Typography>
+          {categories.map((cat) => (
+            <Chip
+              key={cat}
+              label={cat === "all" ? "Todas" : cat}
+              size="small"
+              onClick={() => setCategoria(cat)}
+              variant={categoria === cat ? "filled" : "outlined"}
+              color={categoria === cat ? "primary" : "default"}
+              sx={{ cursor: "pointer" }}
+            />
+          ))}
+        </Box>
+      </Box>
+
       <DialogContent sx={{ p: 0 }}>
         <TableContainer sx={{ maxHeight: "70vh" }}>
           <Table stickyHeader size="small">
@@ -103,13 +195,11 @@ const ProductPricesModal = ({ open, onClose, data, month }) => {
                       active={orderBy === c.id}
                       direction={orderBy === c.id ? order : "desc"}
                       onClick={() => handleSort(c.id)}
-                      hideSortIcon={false}
                     >
                       {c.label}
                     </TableSortLabel>
                   </TableCell>
                 ))}
-                <TableCell>Canales</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -131,6 +221,47 @@ const ProductPricesModal = ({ open, onClose, data, month }) => {
                     {row.cantidad.toLocaleString("es-CL")}
                   </TableCell>
                   <TableCell align="right">{CLP(row.avg_precio)}</TableCell>
+                  <TableCell align="right">
+                    {row.avg_precio_uber_eats > 0 ? (
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "flex-end",
+                          gap: 0.5,
+                        }}
+                      >
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            fontWeight: 600,
+                            color:
+                              row.avg_precio_uber_eats !== row.avg_precio
+                                ? "warning.main"
+                                : "text.primary",
+                          }}
+                        >
+                          {CLP(row.avg_precio_uber_eats)}
+                        </Typography>
+                        {row.avg_precio_uber_eats !== row.avg_precio && (
+                          <Chip
+                            label={`${row.avg_precio_uber_eats > row.avg_precio ? "+" : ""}${Math.round(row.avg_precio_uber_eats - row.avg_precio).toLocaleString("es-CL")}`}
+                            size="small"
+                            color={
+                              row.avg_precio_uber_eats > row.avg_precio
+                                ? "success"
+                                : "error"
+                            }
+                            sx={{ fontSize: "0.6rem", height: 16 }}
+                          />
+                        )}
+                      </Box>
+                    ) : (
+                      <Typography variant="caption" color="text.secondary">
+                        —
+                      </Typography>
+                    )}
+                  </TableCell>
                   <TableCell align="right" sx={{ color: "text.secondary" }}>
                     {CLP(row.avg_iva)}
                   </TableCell>
@@ -165,20 +296,6 @@ const ProductPricesModal = ({ open, onClose, data, month }) => {
                       color={marginColor(row.pct_margen_bruto)}
                       sx={{ fontSize: "0.65rem", height: 20 }}
                     />
-                  </TableCell>
-                  <TableCell>
-                    {row.tiene_uber_eats && (
-                      <Chip
-                        label="Uber Eats"
-                        size="small"
-                        sx={{
-                          fontSize: "0.6rem",
-                          height: 18,
-                          bgcolor: "#1C1C1C",
-                          color: "#06B6D4",
-                        }}
-                      />
-                    )}
                   </TableCell>
                 </TableRow>
               ))}
