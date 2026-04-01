@@ -20,6 +20,7 @@ from .data_processing import (
     get_product_prices_table,
     simulate_price_cost,
     get_sales_excel,
+    get_promotion_advisor,
 )
 
 
@@ -446,5 +447,31 @@ def download_excel(request):
     except Exception as e:
         return Response(
             {"error": f"Error generating Excel: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["GET"])
+def promotion_advisor(request):
+    """Return data-driven promotion recommendations for the current session data."""
+    store = _get_store(request)
+    if store.sales_df_pickle is None:
+        return Response(
+            {"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    month = request.query_params.get("month")
+
+    try:
+        df_sales = _load_df(store.sales_df_pickle).copy()
+        if month:
+            df_sales = df_sales[
+                df_sales["created_at"].dt.to_period("M").astype(str) == month
+            ]
+        result = get_promotion_advisor(df_sales)
+        return Response(result)
+    except Exception as e:
+        return Response(
+            {"error": f"Error computing advisor: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )

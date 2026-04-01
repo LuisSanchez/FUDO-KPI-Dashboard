@@ -5,6 +5,7 @@ import HelpModal from "./components/HelpModal";
 import AppNavBar from "./components/AppNavBar";
 import ProjectionSimulator from "./components/ProjectionSimulator";
 import PriceCostSimulator from "./components/PriceCostSimulator";
+import PromotionAdvisor from "./components/PromotionAdvisor";
 import KpiRow from "./components/KpiRow";
 import DropzoneCard from "./components/DropzoneCard";
 import EbitdaGauge from "./components/EbitdaGauge";
@@ -650,6 +651,12 @@ export default function App() {
         <PriceCostSimulator
           salesLoaded={!!salesFile}
           expensesLoaded={!!expensesFile}
+          selectedMonth={selectedMonth}
+        />
+
+        {/* ── Promotion Advisor ── */}
+        <PromotionAdvisor
+          salesLoaded={!!salesFile}
           selectedMonth={selectedMonth}
         />
 

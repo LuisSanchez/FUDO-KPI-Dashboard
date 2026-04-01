@@ -8,9 +8,10 @@ A full-stack web application that analyzes pizza store profitability using FUDO 
 - **KPI Dashboard** — Real-time EBITDA, CMV%, margins, and expense breakdown (operational vs. loans vs. CapEx)
 - **Break-even Simulator** — Per-product simulation showing units needed for EBITDA = 0 and EBITDA = 25%
 - **Projection Simulator** — Current-month projection: daily sales pace needed to close the gap before month end
-- **Visual Analytics** — 10 charts: daily trend with 7-day rolling average, by-hour, by-weekday, top products, distribution, and scatter
-- **Data Tables** — Sortable tables for sales by product, expense detail, and per-product pricing/margins
-- **PDF Report** — Download a financial summary PDF for any month
+- **Visual Analytics** — Charts by category (Especialidades / Extras): daily trend with 7-day rolling average, by-hour, by-weekday, top products by category, distribution, and scatter
+- **Data Tables** — Searchable, sortable tables for sales by product and category; expense detail with type filter; per-product pricing with Uber Eats price column, channel filter, and category filter
+- **Promotion Advisor** — Data-driven Uber Eats promotion recommendations: top 5 products per category ranked by composite score (margin, cost efficiency, volume), hourly activity heatmap, and average ticket comparison
+- **Exports** — "Descargar" dropdown: PDF financial report, Excel for Especialidades, Excel for Extras (all products, full margin breakdown)
 
 ## Project Structure
 
@@ -39,9 +40,26 @@ omp/
 │       │   ├── TopProductsByQuantity.js / TopProductsByRevenue.js
 │       │   ├── ProductDistribution.js
 │       │   └── QuantityVsRevenue.js
+│       ├── hooks/
+│       │   ├── useDownloadPdf.js
+│       │   ├── useDownloadExcel.js
+│       │   └── useTour.js
+│       ├── utils/
+│       │   └── formatters.js        # CLP, PCT, fmtMonth, cmvColor, CURRENT_MONTH
+│       ├── theme.js                 # MUI dark theme
 │       └── components/
+│           ├── AppNavBar.js
+│           ├── DropzoneCard.js
+│           ├── EbitdaGauge.js
+│           ├── ExpensesTableModal.js
 │           ├── HelpModal.js
-│           └── ProjectionSimulator.js
+│           ├── KpiRow.js
+│           ├── PriceCostSimulator.js
+│           ├── ProductPricesModal.js
+│           ├── ProjectionSimulator.js
+│           ├── PromotionAdvisor.js  # Uber Eats promotion recommendations
+│           ├── SalesTableModal.js
+│           └── SimCard.js
 └── README.md
 ```
 
@@ -107,6 +125,8 @@ Required columns: `Id`, `Fecha`, `Fecha de vencimiento`, `Proveedor`, `Categorí
 | GET | `/api/data/charts/` | All chart datasets |
 | GET | `/api/data/product-prices/` | Per-product pricing & margins |
 | GET | `/api/report/pdf/` | Download PDF report (`?month=YYYY-MM`) |
+| GET | `/api/report/excel/` | Download Excel export (`?categoria=Especialidades\|Extras&month=YYYY-MM`) |
+| GET | `/api/advisor/promotions/` | Promotion recommendations (`?month=YYYY-MM`) |
 | POST | `/api/reset/` | Clear session data |
 
 ## Key Business Logic
@@ -129,6 +149,18 @@ x = (0.25·I − E) / (m − 0.25·i)
 where `E` = current EBITDA, `I` = current revenue, `m` = margin/unit, `i` = revenue/unit.
 
 **IVA (19%):** All analysis is net of IVA. Cash register amounts = net value × 1.19.
+
+**Price/cost simulator scope:** The `price_increase_clp` delta is applied only to Especialidades (pizzas) since that is the product line where pricing decisions are actively managed.
+
+**Zero-cost imputation:** Products with cost = 0 (e.g. data missing from FUDO) are patched by looking up the highest available per-unit cost for the same product in the same period. A targeted patch covers specific products (e.g. Pizza Napoli, Pizza Veggie G) for known affected months.
+
+**Promotion advisor scoring:**
+```
+score = margen_pct × 0.5 + (100 − cmv_pct) × 0.3 + volume_score × 0.2
+```
+- `volume_score` = (product qty / max qty in category) × 100, capped at 100
+- Products with fewer than 3 units sold or CMV = 0 are excluded
+- Top 5 per category (Especialidades, Extras) are returned
 
 ## Development Notes
 

@@ -64,7 +64,7 @@ const SECTIONS = [
     list: [
       [
         "Ventas / Gastos / Precios",
-        "Tablas accesibles desde el AppBar. Ventas: agregado por producto con CMV y margen. Gastos: detalle de cada gasto con tipo (operacional / préstamo / activo fijo). Precios: precio neto promedio y CMV% por producto.",
+        "Tablas accesibles desde el AppBar. Ventas: agregado por producto con búsqueda y orden por cualquier columna. Gastos: detalle por tipo (Operacional / Préstamo / Activo Fijo). Precios: precio neto promedio, CMV% y precio real en Uber Eats, filtrable por canal (local / Uber Eats) y categoría.",
       ],
       [
         "Evolución diaria",
@@ -75,12 +75,37 @@ const SECTIONS = [
         "Distribución acumulada por hora del día y por día de la semana. Útil para identificar los horarios y días pico.",
       ],
       [
-        "Top productos, distribución y scatter",
-        "Top 10 por unidades e ingresos (barras horizontales), distribución de unidades (torta), y relación cantidad vs ingreso por producto (dispersión).",
+        "Top Especialidades y Top Extras",
+        "Gráficos separados por categoría (Especialidades = pizzas, Extras = complementos) tanto por unidades como por ingresos. Permite comparar el desempeño de cada línea de producto de forma independiente.",
       ],
       [
-        "PDF",
-        "El botón PDF en el AppBar genera y descarga un reporte financiero con el resumen de KPIs, análisis de break-even y tabla de ventas por producto para el mes seleccionado.",
+        "Descargar",
+        "Menú desplegable en el AppBar con tres opciones: Reporte del Mes (PDF con KPIs y tablas), Especialidades (Excel con todos los productos y cálculos de margen) y Extras (Excel equivalente para complementos).",
+      ],
+    ],
+  },
+  {
+    title: "Asesor de Promociones Uber Eats",
+    formulas: [
+      [
+        "¿Qué hace?",
+        "Analiza las ventas del período cargado y sugiere los 5 mejores productos por categoría para incluir en promociones de Uber Eats. También muestra el patrón horario de pedidos en el canal y compara el ticket promedio Uber Eats vs. local.",
+      ],
+      [
+        "Puntuación compuesta (score 0–100)",
+        "Combina tres factores: Margen bruto (50 %) — qué tanto queda después de ingredientes y comisión Uber Eats; Eficiencia de costo (30 %) — inverso del CMV (menor costo = mayor puntaje); Volumen relativo (20 %) — popularidad del producto frente al más vendido del período. Fórmula: score = margen% × 0.5 + (100 − cmv%) × 0.3 + volumen_relativo × 0.2.",
+      ],
+      [
+        "Interpretación del score",
+        "Verde (≥ 80): excelente candidato, alto margen y buen volumen. Amarillo (≥ 65): buen candidato con alguna restricción. Gris (< 65): posible pero con trade-offs. El ícono ⓘ junto al botón de refresco muestra esta explicación en la pantalla.",
+      ],
+      [
+        "Horas pico vs. oportunidad",
+        "Naranja = horas con ≥ 60 % del volumen máximo de Uber Eats → lanzar promos flash aquí maximiza alcance. Azul = horas con actividad real pero menor al 50 % del pico → promos para llenar capacidad ociosa sin canibalizar precio en horas pico.",
+      ],
+      [
+        "Ticket promedio por pedido",
+        "Se calcula agrupando todos los ítems de un mismo Id. Venta antes de promediar, para que una orden con 3 productos cuente como un solo pedido. El objetivo de las promociones tipo bundle o combo es elevar este ticket en Uber Eats.",
       ],
     ],
   },

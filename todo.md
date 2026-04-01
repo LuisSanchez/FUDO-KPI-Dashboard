@@ -1,5 +1,1 @@
-- Indicador de ticket promedio en simulador.
-- Sorting y Search en tablas de "Ventas por Producto", columns producto y categoría.
-- add search on "Precios y Márgenes por Producto" table.
-- add filter on "Canales" column on "Precios y Márgenes por Producto".
-- Add a column with real price for uber_eats product (the price might change since we are currently changing prices on the app)
+=
