@@ -123,7 +123,8 @@ Required columns: `Id`, `Fecha`, `Fecha de vencimiento`, `Proveedor`, `Categorí
 | GET | `/api/data/sales/` | Per-product sales table |
 | GET | `/api/data/expenses/` | Expense detail table |
 | GET | `/api/data/charts/` | All chart datasets |
-| GET | `/api/data/product-prices/` | Per-product pricing & margins |
+| GET | `/api/data/product-prices/` | Per-product pricing & margins (incl. Uber Eats avg price) |
+| GET | `/api/simulate/price-cost/` | EBITDA simulation (`?price_increase&cost_increase&month`) |
 | GET | `/api/report/pdf/` | Download PDF report (`?month=YYYY-MM`) |
 | GET | `/api/report/excel/` | Download Excel export (`?categoria=Especialidades\|Extras&month=YYYY-MM`) |
 | GET | `/api/advisor/promotions/` | Promotion recommendations (`?month=YYYY-MM`) |
@@ -150,9 +151,20 @@ where `E` = current EBITDA, `I` = current revenue, `m` = margin/unit, `i` = reve
 
 **IVA (19%):** All analysis is net of IVA. Cash register amounts = net value × 1.19.
 
-**Price/cost simulator scope:** The `price_increase_clp` delta is applied only to Especialidades (pizzas) since that is the product line where pricing decisions are actively managed.
+**Break-even and 25% EBITDA target use tickets, not units:**
+```
+avg_ticket           = total_ingreso_sin_iva / unique(Id. Venta)
+contribution/ticket  = avg_ticket − avg_CMV/ticket
+breakeven_tickets    = ceil(−EBITDA / contribution_per_ticket)
+25% target tickets   = (0.25·I − EBITDA) / (contribution − 0.25·avg_ticket)
+```
+The simulator and the PDF report both use this ticket-based model. The `PriceCostSimulator` component exposes `avg_ticket` and `contribution_pct` in its comparison table.
 
-**Zero-cost imputation:** Products with cost = 0 (e.g. data missing from FUDO) are patched by looking up the highest available per-unit cost for the same product in the same period. A targeted patch covers specific products (e.g. Pizza Napoli, Pizza Veggie G) for known affected months.
+**Price/cost simulator scope:** The `price_increase_clp` delta is applied only to Especialidades. The response includes `date_from`, `date_to`, `total_tickets`, `avg_ticket_current/projected`, and `contribution_pct_current/projected`.
+
+**Zero-cost imputation:** Products with cost = 0 are patched by the highest available per-unit cost of the same product in the same period. A targeted patch covers "Pizza Napoli" and "Pizza Veggie G" for March 2026.
+
+**PDF report filename:** Derived from actual data period — single month → `reporte-YYYY-MM.pdf`; multiple months → `reporte-YYYY-MM_a_YYYY-MM.pdf`. Applied in both the backend `Content-Disposition` header and the frontend download hook.
 
 **Promotion advisor scoring:**
 ```

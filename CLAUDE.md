@@ -50,17 +50,22 @@ GET  /api/data/sales/          Per-product sales aggregation for table display
 GET  /api/data/expenses/       Individual expense rows for table display
 GET  /api/data/charts/         All chart datasets for the selected month
 GET  /api/data/product-prices/ Per-product average pricing and margin breakdown
+GET  /api/simulate/price-cost/ EBITDA simulation (?price_increase&cost_increase&month)
 GET  /api/report/pdf/          Generate and download PDF financial report (?month=YYYY-MM)
+GET  /api/report/excel/        Download Excel export (?categoria=Especialidades|Extras&month=YYYY-MM)
+GET  /api/advisor/promotions/  Promotion recommendations (?month=YYYY-MM)
 POST /api/reset/               Clear session data
 ```
 
 Key business logic in `data_processing.py`:
-- `sales_clean_up_data()` — cleans data, computes `ingreso_sin_iva = ingreso / 1.19` (19% IVA), applies 30% commission deduction for Uber Eats orders
-- `kpi_calculations()` — **EBITDA = `total_ingreso_sin_iva − gastos_totales`** (revenue minus all operational expenses from the expenses file; does NOT subtract FUDO COGS to avoid double-counting ingredient costs). Simulation: `breakeven_units = ceil(-ebitda / avg_margen_per_unit)`; 25% target: `x = (0.25·I − E) / (m − 0.25·i)`.
-- `get_chart_data()` — returns hourly, daily, and weekday count/revenue; top-10 by qty/revenue; pie distribution; scatter (top 40)
-- `get_product_prices_table()` — per-product average net price, IVA component, ingredient cost, and margin breakdown
-- `add_simulated_sales()` — appends simulated rows for what-if analysis; "Duo Familiar (2pizzas)" has special zero-modifier handling
-- **`simulator/report.py`** — `build_financial_report(df_sales, df_expenses, month=None) -> bytes`. Generates a reportlab PDF with KPI summary, break-even table (sin/con IVA), and top-20 sales by product.
+- `sales_clean_up_data()` — cleans data, computes `ingreso_sin_iva = ingreso / 1.19` (19% IVA), applies 30% commission deduction for Uber Eats orders. Zero-cost patch: products with `Costo base = 0` are imputed from the max per-unit cost of the same product in the same period (targeted patch for "Pizza Napoli" / "Pizza Veggie G" in March 2026).
+- `kpi_calculations()` — **EBITDA = `total_ingreso_sin_iva − gastos_totales`** (revenue minus all operational expenses from the expenses file; does NOT subtract FUDO COGS to avoid double-counting). Break-even and 25% target use **tickets** (unique `Id. Venta` count) not unit count: `avg_ticket = total_ingreso / total_tickets`; `breakeven_tickets = ceil(-ebitda / avg_contribution_per_ticket)`.
+- `simulate_price_cost()` — returns baseline + projected metrics. Price increase applies only to Especialidades. Returns `avg_ticket_current/projected`, `contribution_pct_current/projected`, `date_from/date_to`, `total_tickets`.
+- `get_chart_data()` — returns hourly, daily, and weekday count/revenue; top-10 by qty/revenue **split by category** (Especialidades / Extras); pie distribution; scatter (top 40).
+- `get_product_prices_table()` — per-product average net price, IVA component, ingredient cost, margin breakdown, and `avg_precio_uber_eats` (separate average for Uber Eats channel).
+- `get_sales_excel(df, categoria)` — returns xlsx bytes for all products in the given category with full margin columns (CMV%, Margen%, Comisión%).
+- `get_promotion_advisor(df)` — top-5 products per category ranked by composite score: `score = margen_pct × 0.5 + (100 − cmv_pct) × 0.3 + volume_score × 0.2`. Returns hourly Uber Eats pattern and per-order avg ticket comparison.
+- **`simulator/report.py`** — `build_financial_report(df_sales, df_expenses, month=None) -> bytes`. Reportlab PDF: cover with actual date range (`date_from – date_to`), KPI summary, break-even table (tickets-based, with wrapping Nota column), expenses breakdown, payables aging, and full product tables for **all** Especialidades and Extras (no cap).
 
 Date validation: `upload_expenses` reads "Fecha" column, extracts months, and validates overlap with `sales_months` stored from `upload_sales`. Returns HTTP 422 `{"error": "date_mismatch"}` on no overlap. Re-uploading sales clears the stored expenses.
 
@@ -68,18 +73,22 @@ All numpy types must be explicitly cast to Python natives (`int()`, `float()`, `
 
 ### Frontend (`frontend/src/`)
 
-- **`App.js`** — Top-level state management. Contains `FileDropzone` and `ResultsDisplay` components inline. Handles file uploads, month selection, KPI display, and toast notifications. AppBar has Ventas / Gastos / Precios table buttons and a PDF download button (visible when both files are uploaded).
+- **`App.js`** — Top-level state management. Handles file uploads, month selection, KPI display, and toast notifications. All sub-components are extracted; `App.js` only manages state and wires hooks.
+- **`theme.js`** — MUI `createTheme` config (primary `#F97316`, background `#0F172A`, paper `#1E293B`).
+- **`utils/formatters.js`** — Shared helpers: `CLP`, `PCT`, `CURRENT_MONTH`, `MONTH_NAMES`, `fmtMonth`, `cmvColor`, `TIPO_COLOR`.
+- **`hooks/useDownloadPdf.js`** — `useDownloadPdf(selectedMonth, onError, months)`. Filename uses the actual data period: specific month → `reporte-{month}.pdf`; single available month → same; multiple → `reporte-{first}_a_{last}.pdf`.
+- **`hooks/useDownloadExcel.js`** — `useDownloadExcel(selectedMonth, onError)`. `downloadExcel(categoria)` → `GET /api/report/excel/`.
 - **`charts/`** — Chart.js chart components, one per file. All import shared config from `chartConfig.js`.
-  - `chartConfig.js` — Central Chart.js registration (must import before any chart renders), shared theme constants (`COLORS`, `PALETTE`), base option objects (`baseOptions`, `horizontalBaseOptions`), and `CLP` formatter.
   - `ChartsSection.js` — Fetches `/api/data/charts/` and renders all charts. Full-width `SalesTrend` first, then 2-column grid. All charts support expand-to-modal via `OpenInFullIcon`.
-  - `SalesTrend.js` — Full-width daily evolution chart (bar + 7-day rolling average line). Toggle between revenue and count. Mixed chart using Chart.js bar+line datasets.
-  - `SalesByDay.js` / `SalesByWeekday.js` — Daily and weekday bar charts with best-day highlight.
-  - `SalesByHour.js` / `RevenueByHour.js` — Hourly distribution charts.
-  - `TopProductsByQuantity.js` / `TopProductsByRevenue.js` — Horizontal bar charts for top 10 products.
-  - `ProductDistribution.js` — Pie chart, top 10 + "Otros".
-  - `QuantityVsRevenue.js` — Scatter chart (top 40 by revenue).
-- **`components/HelpModal.js`** — Extracted help dialog. Content sections defined as a `SECTIONS` data array for easy maintenance. Covers formulas, file requirements, charts overview, and data-persistence warning.
-- **`components/ProjectionSimulator.js`** — "How much do I need to sell?" simulator. Only renders when `isCurrentMonth && salesLoaded && expensesLoaded`. Uses per-unit averages from `/api/calculate/` response to compute breakeven and 25% EBITDA targets for remaining days in the month.
+  - `TopProductsByQuantity.js` / `TopProductsByRevenue.js` — Accept a `title` prop; rendered 4× (Especialidades qty, Especialidades rev, Extras qty, Extras rev).
+- **`components/AppNavBar.js`** — "Descargar" dropdown: Reporte del Mes (PDF), Especialidades (Excel), Extras (Excel).
+- **`components/SalesTableModal.js`** — Searchable (Producto + Categoría), sortable by any column, totals row reflects filtered data.
+- **`components/ProductPricesModal.js`** — Sortable; filters by search, channel (all/uber_eats/local), and Categoría. Includes `avg_precio_uber_eats` column with delta chip.
+- **`components/ExpensesTableModal.js`** — Filter chips for Tipo (Operacional/Préstamo/Activo Fijo). Sticky totals row.
+- **`components/PriceCostSimulator.js`** — Sliders for price (+CLP, Especialidades only) and cost (+%). Shows date range of the calculation period, total tickets, and comparison table with rows: Ingreso s/IVA, CMV, Ticket promedio, Contribución %, EBITDA, EBITDA %, Precio prom. Especialidades.
+- **`components/PromotionAdvisor.js`** — Collapsible. Fetches `GET /api/advisor/promotions/`. Shows top-5 Especialidades + top-5 Extras ranked by composite score, hourly Uber Eats bar chart, avg ticket comparison. ⓘ tooltip explains the scoring formula.
+- **`components/HelpModal.js`** — `SECTIONS` data array; covers formulas, file requirements, tables/charts overview, and Asesor de Promociones section.
+- **`components/ProjectionSimulator.js`** — Only renders when `isCurrentMonth`. Break-even and 25% target for remaining days.
 
 Key frontend patterns:
 - `CURRENT_MONTH = new Date().toISOString().slice(0, 7)` — used to gate the projection simulator
@@ -87,6 +96,7 @@ Key frontend patterns:
 - All `/api/` requests proxy to `http://localhost:8000` (configured in `package.json`)
 - MUI dark theme: primary `#F97316`, background `#0F172A`, paper `#1E293B`
 - Date mismatch on expense upload → `Snackbar` toast (HTTP 422), not an error alert
+- Break-even uses **tickets** (`Id. Venta` unique count) as the unit of analysis throughout: simulator, report, and projection
 
 ### Lab (`backend/lab/`)
 

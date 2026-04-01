@@ -54,8 +54,8 @@ const SECTIONS = [
         "EBITDA = Ingresos sin IVA − Gastos operacionales (del archivo de gastos). Los gastos incluyen materia prima, sueldos, arriendo y otros costos reales pagados. Préstamos de socios y activo fijo se excluyen por ser financiamiento/inversión. El % se calcula sobre el ingreso sin IVA.",
       ],
       [
-        "Break-even y simulador",
-        "Break-even: unidades adicionales para que EBITDA ≥ 0. Fórmula: x = −EBITDA / m, donde m = margen FUDO por unidad. Para EBITDA del 25%: x = (0.25·I − E) / (m − 0.25·i), donde E = EBITDA actual, I = ingreso actual, i = ingreso por unidad. El simulador solo se activa en el mes corriente.",
+        "Break-even y simulador (en tickets)",
+        "El break-even se calcula en tickets (pedidos únicos, identificados por Id. Venta), no en unidades individuales. Ticket promedio = ingresos sin IVA / tickets únicos. Contribución por ticket = ticket promedio − CMV promedio. Break-even: tickets_extra = −EBITDA / contribución. Para EBITDA 25%: tickets_extra = (0.25·I − E) / (contribución − 0.25·ticket). El simulador de precio y costos se activa solo cuando ambos archivos están cargados; el aumento de precio aplica únicamente a Especialidades.",
       ],
     ],
   },
@@ -79,8 +79,12 @@ const SECTIONS = [
         "Gráficos separados por categoría (Especialidades = pizzas, Extras = complementos) tanto por unidades como por ingresos. Permite comparar el desempeño de cada línea de producto de forma independiente.",
       ],
       [
+        "Simulador de Precio y Costos",
+        "Simula el impacto de subir el precio de venta de Especialidades (en CLP con IVA) y/o un alza porcentual en el costo de ingredientes. Muestra el rango de fechas exacto del período analizado, el total de tickets y unidades de Especialidades. La tabla compara Actual vs. Simulado para: Ingreso s/IVA, CMV, Ticket promedio, Contribución % y EBITDA.",
+      ],
+      [
         "Descargar",
-        "Menú desplegable en el AppBar con tres opciones: Reporte del Mes (PDF con KPIs y tablas), Especialidades (Excel con todos los productos y cálculos de margen) y Extras (Excel equivalente para complementos).",
+        "Menú desplegable en el AppBar con tres opciones: Reporte del Mes (PDF con KPIs, break-even en tickets, gastos y tablas completas de productos), Especialidades (Excel con todos los productos y cálculos de margen) y Extras (Excel equivalente para complementos). El nombre del archivo PDF refleja el período real de los datos, no la fecha actual.",
       ],
     ],
   },
