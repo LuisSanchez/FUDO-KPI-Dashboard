@@ -395,7 +395,23 @@ def download_report(request):
 
         pdf_bytes = build_financial_report(df_sales, df_expenses, month=month)
 
-        filename = f"reporte-{month}.pdf" if month else "reporte-financiero.pdf"
+        if month:
+            filename = f"reporte-{month}.pdf"
+        else:
+            months_in_data = sorted(
+                df_sales["created_at"]
+                .dt.to_period("M")
+                .dropna()
+                .astype(str)
+                .unique()
+                .tolist()
+            )
+            if len(months_in_data) == 1:
+                filename = f"reporte-{months_in_data[0]}.pdf"
+            elif len(months_in_data) > 1:
+                filename = f"reporte-{months_in_data[0]}_a_{months_in_data[-1]}.pdf"
+            else:
+                filename = "reporte-financiero.pdf"
         response = HttpResponse(pdf_bytes, content_type="application/pdf")
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
         return response

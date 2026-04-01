@@ -74,7 +74,11 @@ const ProductCard = ({ rank, item, accent }) => (
         flexShrink: 0,
       }}
     >
-      <Typography variant="caption" fontWeight={700} sx={{ color: accent, fontSize: "0.7rem" }}>
+      <Typography
+        variant="caption"
+        fontWeight={700}
+        sx={{ color: accent, fontSize: "0.7rem" }}
+      >
         {rank}
       </Typography>
     </Box>
@@ -109,9 +113,14 @@ const ProductCard = ({ rank, item, accent }) => (
           }}
         />
         <Chip
-          label={CLP(item.ingreso_sin_iva / (item.cantidad || 1) * 1.19)}
+          label={CLP((item.ingreso_sin_iva / (item.cantidad || 1)) * 1.19)}
           size="small"
-          sx={{ fontSize: "0.6rem", height: 18, bgcolor: "#33415520", color: "#94A3B8" }}
+          sx={{
+            fontSize: "0.6rem",
+            height: 18,
+            bgcolor: "#33415520",
+            color: "#94A3B8",
+          }}
         />
       </Box>
       <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
@@ -121,7 +130,8 @@ const ProductCard = ({ rank, item, accent }) => (
             variant="caption"
             sx={{ color: "#64748B", fontSize: "0.65rem" }}
           >
-            {i > 0 ? "· " : ""}{r}
+            {i > 0 ? "· " : ""}
+            {r}
           </Typography>
         ))}
       </Box>
@@ -134,7 +144,10 @@ const ProductCard = ({ rank, item, accent }) => (
       >
         {item.score}
       </Typography>
-      <Typography variant="caption" sx={{ color: "#475569", display: "block", fontSize: "0.6rem" }}>
+      <Typography
+        variant="caption"
+        sx={{ color: "#475569", display: "block", fontSize: "0.6rem" }}
+      >
         score
       </Typography>
     </Box>
@@ -144,7 +157,12 @@ const ProductCard = ({ rank, item, accent }) => (
 // ── HourBar ───────────────────────────────────────────────────────────────────
 const HourBar = ({ hour, count, peak, highlight }) => {
   const pct = peak > 0 ? (count / peak) * 100 : 0;
-  const color = highlight === "best" ? "#F97316" : highlight === "slow" ? "#38BDF8" : "#334155";
+  const color =
+    highlight === "best"
+      ? "#F97316"
+      : highlight === "slow"
+        ? "#38BDF8"
+        : "#334155";
   return (
     <Tooltip title={`${fmt12h(hour)}: ${count} uds`} arrow>
       <Box
@@ -205,7 +223,9 @@ const PromotionAdvisor = ({ salesLoaded, selectedMonth }) => {
     setError(null);
     try {
       const params =
-        selectedMonth && selectedMonth !== "all" ? { month: selectedMonth } : {};
+        selectedMonth && selectedMonth !== "all"
+          ? { month: selectedMonth }
+          : {};
       const res = await axios.get("/api/advisor/promotions/", { params });
       setData(res.data);
     } catch (e) {
@@ -230,7 +250,9 @@ const PromotionAdvisor = ({ salesLoaded, selectedMonth }) => {
   const ticketDelta =
     data?.avg_ticket_local > 0
       ? Math.round(
-          ((data.avg_ticket_uber - data.avg_ticket_local) / data.avg_ticket_local) * 100,
+          ((data.avg_ticket_uber - data.avg_ticket_local) /
+            data.avg_ticket_local) *
+            100,
         )
       : null;
 
@@ -262,36 +284,66 @@ const PromotionAdvisor = ({ salesLoaded, selectedMonth }) => {
             <Chip
               label={`${data.uber_pct_of_units}% de ventas · ${data.uber_units} uds`}
               size="small"
-              sx={{ fontSize: "0.65rem", height: 18, bgcolor: "#1C1C1C", color: "#06B6D4" }}
+              sx={{
+                fontSize: "0.65rem",
+                height: 18,
+                bgcolor: "#1C1C1C",
+                color: "#06B6D4",
+              }}
             />
           )}
         </Box>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
           <Tooltip
             title={
-              <Box sx={{ whiteSpace: "pre-line", fontSize: "0.75rem", lineHeight: 1.6 }}>
+              <Box
+                sx={{
+                  whiteSpace: "pre-line",
+                  fontSize: "0.75rem",
+                  lineHeight: 1.6,
+                }}
+              >
                 {SCORE_EXPLANATION}
               </Box>
             }
             arrow
             placement="left"
-            componentsProps={{ tooltip: { sx: { maxWidth: 360, bgcolor: "#1E293B", border: "1px solid #334155" } } }}
+            componentsProps={{
+              tooltip: {
+                sx: {
+                  maxWidth: 360,
+                  bgcolor: "#1E293B",
+                  border: "1px solid #334155",
+                },
+              },
+            }}
           >
-            <IconButton size="small" onClick={(e) => e.stopPropagation()} sx={{ color: "#64748B" }}>
+            <IconButton
+              size="small"
+              onClick={(e) => e.stopPropagation()}
+              sx={{ color: "#64748B" }}
+            >
               <InfoOutlinedIcon fontSize="small" />
             </IconButton>
           </Tooltip>
           <Tooltip title="Actualizar recomendaciones">
             <IconButton
               size="small"
-              onClick={(e) => { e.stopPropagation(); fetch(); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                fetch();
+              }}
               sx={{ color: "text.secondary" }}
             >
               <RefreshIcon fontSize="small" />
             </IconButton>
           </Tooltip>
           <IconButton size="small" sx={{ color: "text.secondary" }}>
-            {open ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+            {open ? (
+              <ExpandLessIcon fontSize="small" />
+            ) : (
+              <ExpandMoreIcon fontSize="small" />
+            )}
           </IconButton>
         </Box>
       </Box>
@@ -309,7 +361,6 @@ const PromotionAdvisor = ({ salesLoaded, selectedMonth }) => {
         )}
         {!loading && data && (
           <Box sx={{ p: 3 }}>
-
             {/* ── Ticket comparison ── */}
             <Box
               sx={{
@@ -328,7 +379,11 @@ const PromotionAdvisor = ({ salesLoaded, selectedMonth }) => {
                 <Typography variant="body2" color="text.secondary">
                   Ticket prom. Uber Eats:
                 </Typography>
-                <Typography variant="body2" fontWeight={700} sx={{ color: "#06B6D4" }}>
+                <Typography
+                  variant="body2"
+                  fontWeight={700}
+                  sx={{ color: "#06B6D4" }}
+                >
                   {CLP(data.avg_ticket_uber)}
                 </Typography>
               </Box>
@@ -348,7 +403,11 @@ const PromotionAdvisor = ({ salesLoaded, selectedMonth }) => {
                   sx={{ fontSize: "0.7rem", height: 22 }}
                 />
               )}
-              <Typography variant="caption" color="text.secondary" sx={{ ml: "auto" }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ ml: "auto" }}
+              >
                 Objetivo: aumentar ticket promedio mediante bundles y combos
               </Typography>
             </Box>
@@ -357,7 +416,14 @@ const PromotionAdvisor = ({ salesLoaded, selectedMonth }) => {
             <Box sx={{ display: "flex", gap: 3, mb: 3, flexWrap: "wrap" }}>
               {/* Especialidades */}
               <Box sx={{ flex: "1 1 300px", minWidth: 0 }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    mb: 1.5,
+                  }}
+                >
                   <Typography variant="subtitle2" sx={{ color: "#F97316" }}>
                     🍕 Top Especialidades
                   </Typography>
@@ -367,7 +433,12 @@ const PromotionAdvisor = ({ salesLoaded, selectedMonth }) => {
                 </Box>
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
                   {(data.especialidades || []).map((item, i) => (
-                    <ProductCard key={item.Producto} rank={i + 1} item={item} accent="#F97316" />
+                    <ProductCard
+                      key={item.Producto}
+                      rank={i + 1}
+                      item={item}
+                      accent="#F97316"
+                    />
                   ))}
                   {(data.especialidades || []).length === 0 && (
                     <Typography variant="caption" color="text.secondary">
@@ -377,11 +448,22 @@ const PromotionAdvisor = ({ salesLoaded, selectedMonth }) => {
                 </Box>
               </Box>
 
-              <Divider orientation="vertical" flexItem sx={{ display: { xs: "none", md: "block" } }} />
+              <Divider
+                orientation="vertical"
+                flexItem
+                sx={{ display: { xs: "none", md: "block" } }}
+              />
 
               {/* Extras */}
               <Box sx={{ flex: "1 1 300px", minWidth: 0 }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    mb: 1.5,
+                  }}
+                >
                   <Typography variant="subtitle2" sx={{ color: "#38BDF8" }}>
                     🧃 Top Extras
                   </Typography>
@@ -391,7 +473,12 @@ const PromotionAdvisor = ({ salesLoaded, selectedMonth }) => {
                 </Box>
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
                   {(data.extras || []).map((item, i) => (
-                    <ProductCard key={item.Producto} rank={i + 1} item={item} accent="#38BDF8" />
+                    <ProductCard
+                      key={item.Producto}
+                      rank={i + 1}
+                      item={item}
+                      accent="#38BDF8"
+                    />
                   ))}
                   {(data.extras || []).length === 0 && (
                     <Typography variant="caption" color="text.secondary">
@@ -404,22 +491,48 @@ const PromotionAdvisor = ({ salesLoaded, selectedMonth }) => {
 
             {/* ── Timing ── */}
             <Divider sx={{ mb: 2.5 }} />
-            <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1, mb: 1.5 }}>
-              <AccessTimeIcon sx={{ color: "#FBBF24", fontSize: 18, mt: 0.2 }} />
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 1,
+                mb: 1.5,
+              }}
+            >
+              <AccessTimeIcon
+                sx={{ color: "#FBBF24", fontSize: 18, mt: 0.2 }}
+              />
               <Box>
                 <Typography variant="subtitle2" sx={{ mb: 0.25 }}>
                   Actividad Uber Eats por hora
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  <span style={{ color: "#F97316", fontWeight: 700 }}>■</span> Horas pico &nbsp;
-                  <span style={{ color: "#38BDF8", fontWeight: 700 }}>■</span> Oportunidad de promo
+                  <span style={{ color: "#F97316", fontWeight: 700 }}>■</span>{" "}
+                  Horas pico &nbsp;
+                  <span style={{ color: "#38BDF8", fontWeight: 700 }}>
+                    ■
+                  </span>{" "}
+                  Oportunidad de promo
                   {data.best_weekday && (
-                    <> &nbsp;·&nbsp; Mejor día: <strong style={{ color: "#F1F5F9" }}>{data.best_weekday}</strong></>
+                    <>
+                      {" "}
+                      &nbsp;·&nbsp; Mejor día:{" "}
+                      <strong style={{ color: "#F1F5F9" }}>
+                        {data.best_weekday}
+                      </strong>
+                    </>
                   )}
                 </Typography>
               </Box>
             </Box>
-            <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", alignItems: "flex-end" }}>
+            <Box
+              sx={{
+                display: "flex",
+                gap: 0.5,
+                flexWrap: "wrap",
+                alignItems: "flex-end",
+              }}
+            >
               {Object.entries(data.uber_hours)
                 .filter(([, v]) => v.count > 0)
                 .map(([h, v]) => {
@@ -430,7 +543,13 @@ const PromotionAdvisor = ({ salesLoaded, selectedMonth }) => {
                       ? "slow"
                       : null;
                   return (
-                    <HourBar key={h} hour={hour} count={v.count} peak={peak} highlight={highlight} />
+                    <HourBar
+                      key={h}
+                      hour={hour}
+                      count={v.count}
+                      peak={peak}
+                      highlight={highlight}
+                    />
                   );
                 })}
             </Box>

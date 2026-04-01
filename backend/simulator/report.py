@@ -54,6 +54,10 @@ def _s(name, **kw):
     return ParagraphStyle(name, parent=_SS["Normal"], **kw)
 
 
+NOTA_STYLE = _s(
+    "nota_cell", fontSize=7.5, textColor=SUBTEXT, fontName="Helvetica", leading=11
+)
+
 ST = {
     "cover_title": _s(
         "ct",
@@ -183,33 +187,38 @@ def _kpi_summary_table(kpis):
         [
             "Ingresos brutos sin IVA",
             _clp(total_ingreso),
-            f"con IVA: {_clp(ing['total_ingreso'])}",
+            Paragraph(f"con IVA: {_clp(ing['total_ingreso'])}", NOTA_STYLE),
         ],
         [
             "  Comisión Uber Eats",
             _clp(-comision_sin_iva),
-            f"{comision_pct_total:.1f}% de ingresos · 30% de pedidos Uber",
+            Paragraph(
+                f"{comision_pct_total:.1f}% de ingresos · 30% de pedidos Uber",
+                NOTA_STYLE,
+            ),
         ],
         [
             "  CMV (ingredientes s/IVA)",
             _clp(-ing["cmv"]),
-            f"{ing['cmv_percentage']:.1f}% de ingresos",
+            Paragraph(f"{ing['cmv_percentage']:.1f}% de ingresos", NOTA_STYLE),
         ],
         [
             "  Margen bruto (s/IVA)",
             _clp(ing["total_margen_sin_iva"]),
-            f"{margen_bruto_pct:.1f}% · CMV + Comisión + Margen = 100%",
+            Paragraph(
+                f"{margen_bruto_pct:.1f}% · CMV + Comisión + Margen = 100%", NOTA_STYLE
+            ),
         ],
         ["Gastos operacionales", _clp(-gas["gastos_totales"]), ""],
         [
             "  Pagado",
             _clp(-gas["pagados_totales"]),
-            f"Por pagar: {_clp(gas['por_pagar_totales'])}",
+            Paragraph(f"Por pagar: {_clp(gas['por_pagar_totales'])}", NOTA_STYLE),
         ],
         [
             "EBITDA",
             _clp(ebitda_val),
-            f"{ebitda_pct:.1f}% sobre ingresos",
+            Paragraph(f"{ebitda_pct:.1f}% sobre ingresos", NOTA_STYLE),
         ],
     ]
     if gas["prestamos_socios"] > 0:
@@ -242,11 +251,11 @@ def _sales_table(df_sales, categoria=None):
         return _P(f"Sin datos para la categoría '{categoria}'.", "bodysub")
 
     rows = [["Producto", "Cant.", "Ingreso s/IVA", "CMV%", "Comis.%", "Margen%"]]
-    for r in rows_data[:20]:
+    for r in rows_data:
         comis = r.get("comision_pct", 0) or 0
         rows.append(
             [
-                r["Producto"][:34],
+                _P(r["Producto"], "bodysub"),
                 str(int(r["cantidad"])),
                 _clp(r["ingreso_sin_iva"]),
                 f"{r['cmv_pct']:.1f}%",
@@ -267,98 +276,103 @@ def _breakeven_section(kpis, df_sales):
     ebt = kpis["ebitda"]
 
     total_ingreso = ing["total_ingreso_sin_iva"]
-    total_gastos = gas["gastos_totales"]
     ebitda = ebt["ebitda"]
 
-    # Aggregate per-unit averages across all products
     if df_sales.empty or total_ingreso == 0:
         return _P("Datos insuficientes para análisis de break-even.", "bodysub")
 
-    total_units = df_sales["Cantidad"].sum()
-    if total_units == 0:
-        return _P("Sin unidades vendidas.", "bodysub")
+    # Use tickets (unique orders) as the unit of analysis, not individual items.
+    # A ticket = one Id. Venta grouping all line-items of the same order.
+    if "Id. Venta" not in df_sales.columns:
+        return _P("Columna 'Id. Venta' no disponible.", "bodysub")
+
+    total_tickets = df_sales["Id. Venta"].nunique()
+    if total_tickets == 0:
+        return _P("Sin tickets de venta.", "bodysub")
 
     total_cmv = df_sales["costo_ingredientes_sin_iva"].sum()
-    avg_ingreso_per_unit = total_ingreso / total_units
-    # Contribution = ingreso − ingredient cost only.
-    # Uber Eats commission is not in the expense file (Uber pays net),
-    # so it does not scale with additional units in the EBITDA model.
-    avg_contribution_per_unit = (total_ingreso - total_cmv) / total_units
+    avg_ticket = total_ingreso / total_tickets
+    # Contribution per ticket = ingreso − ingredient cost.
+    # Uber Eats commission is already netted out by the platform (Uber pays net),
+    # so it does not scale with additional orders in the EBITDA model.
+    avg_contribution_per_ticket = (total_ingreso - total_cmv) / total_tickets
     contribution_pct = (
-        avg_contribution_per_unit / avg_ingreso_per_unit * 100
-        if avg_ingreso_per_unit
-        else 0
+        avg_contribution_per_ticket / avg_ticket * 100 if avg_ticket else 0
     )
 
     # Break-even: ebitda + x*c = 0  →  x = -ebitda / c
     if ebitda >= 0:
-        be_units_needed = 0
-        be_units_total = int(total_units)
+        be_tickets_needed = 0
+        be_tickets_total = total_tickets
         be_note = "Ya alcanzado"
-    elif avg_contribution_per_unit > 0:
-        be_units_needed = math.ceil(-ebitda / avg_contribution_per_unit)
-        be_units_total = int(total_units) + be_units_needed
+    elif avg_contribution_per_ticket > 0:
+        be_tickets_needed = math.ceil(-ebitda / avg_contribution_per_ticket)
+        be_tickets_total = total_tickets + be_tickets_needed
         be_note = ""
     else:
         return _P(
-            "Contribución por unidad negativa. Revisar precios y costos.", "bodysub"
+            "Contribución por ticket negativa. Revisar precios y costos.", "bodysub"
         )
 
-    # 25% EBITDA: x = (0.25*I - ebitda) / (c - 0.25*i)
-    denom_25 = avg_contribution_per_unit - 0.25 * avg_ingreso_per_unit
+    # 25% EBITDA: x = (0.25*I - ebitda) / (c - 0.25*avg_ticket)
+    denom_25 = avg_contribution_per_ticket - 0.25 * avg_ticket
     if ebt["ebitda_percentage"] >= 25:
-        t25_units_needed = 0
-        t25_units_total = int(total_units)
+        t25_tickets_needed = 0
+        t25_tickets_total = total_tickets
         t25_note = "Ya alcanzado"
     elif denom_25 > 0:
         numer_25 = 0.25 * total_ingreso - ebitda
-        t25_units_needed = math.ceil(numer_25 / denom_25)
-        t25_units_total = int(total_units) + t25_units_needed
+        t25_tickets_needed = math.ceil(numer_25 / denom_25)
+        t25_tickets_total = total_tickets + t25_tickets_needed
         t25_note = ""
     else:
-        t25_units_needed = None
-        t25_units_total = None
+        t25_tickets_needed = None
+        t25_tickets_total = None
         t25_note = "Margen insuficiente"
 
-    # Revenue projections (sin IVA → con IVA)
-    def _proj(units):
-        return units * avg_ingreso_per_unit if units else None
+    def _proj(tickets):
+        return tickets * avg_ticket if tickets else None
 
-    be_ingreso = _proj(be_units_total)
-    t25_ingreso = _proj(t25_units_total)
+    be_ingreso = _proj(be_tickets_total)
+    t25_ingreso = _proj(t25_tickets_total)
 
     rows = [
-        ["Métrica", "Unidades", "Ingreso s/IVA", "Ingreso c/IVA", "Nota"],
+        ["Métrica", "Tickets", "Ingreso s/IVA", "Ingreso c/IVA", "Nota"],
         [
             "Situación actual",
-            f"{int(total_units):,}",
+            f"{total_tickets:,}",
             _clp(total_ingreso),
             _clp(total_ingreso * 1.19),
-            f"EBITDA {ebt['ebitda_percentage']:.1f}% · ticket {_clp(avg_ingreso_per_unit)} · contrib. {contribution_pct:.1f}%",
+            Paragraph(
+                f"EBITDA {ebt['ebitda_percentage']:.1f}% · ticket prom. {_clp(avg_ticket)} · "
+                f"contribución {contribution_pct:.1f}% por ticket",
+                NOTA_STYLE,
+            ),
         ],
         [
             "Break-even (EBITDA = 0)",
-            f"+{be_units_needed:,}" if be_units_needed else "—",
+            f"+{be_tickets_needed:,}" if be_tickets_needed else "—",
             _clp(be_ingreso) if be_ingreso else "—",
             _clp(be_ingreso * 1.19) if be_ingreso else "—",
-            be_note,
+            Paragraph(be_note, NOTA_STYLE),
         ],
         [
             "EBITDA 25%",
-            f"+{t25_units_needed:,}" if t25_units_needed else "—",
+            f"+{t25_tickets_needed:,}" if t25_tickets_needed else "—",
             _clp(t25_ingreso) if t25_ingreso else "—",
             _clp(t25_ingreso * 1.19) if t25_ingreso else "—",
-            t25_note,
+            Paragraph(t25_note, NOTA_STYLE),
         ],
     ]
 
     extra = [
         ("FONTNAME", (0, 2), (-1, 2), "Helvetica-Bold"),
-        ("TEXTCOLOR", (1, 2), (-1, 2), YELLOW),
+        ("TEXTCOLOR", (1, 2), (3, 2), YELLOW),
         ("FONTNAME", (0, 3), (-1, 3), "Helvetica-Bold"),
-        ("TEXTCOLOR", (1, 3), (-1, 3), GREEN),
+        ("TEXTCOLOR", (1, 3), (3, 3), GREEN),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
     ]
-    return _tbl(rows, [W * 0.30, W * 0.14, W * 0.18, W * 0.18, W * 0.20], extra)
+    return _tbl(rows, [W * 0.28, W * 0.12, W * 0.18, W * 0.18, W * 0.24], extra)
 
 
 # ── Expenses breakdown by category ────────────────────────────────────────────
@@ -512,6 +526,10 @@ def build_financial_report(
     month_label = month or "Todos los meses"
     generated_at = datetime.datetime.now().strftime("%d/%m/%Y %H:%M")
 
+    date_from = df["created_at"].min().strftime("%d/%m/%Y") if not df.empty else "—"
+    date_to = df["created_at"].max().strftime("%d/%m/%Y") if not df.empty else "—"
+    date_range_label = f"{date_from} al {date_to}" if date_from != "—" else "Sin datos"
+
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf,
@@ -532,6 +550,7 @@ def build_financial_report(
         _P("Reporte Financiero — Oh My Pizza", "cover_sub"),
         Spacer(1, 0.2 * cm),
         _P(f"Período: {month_label}  ·  Generado: {generated_at}", "cover_meta"),
+        _P(f"Datos: {date_range_label}", "cover_meta"),
         Spacer(1, 0.4 * cm),
         _HR(ORANGE, t=1),
         Spacer(1, 0.4 * cm),
@@ -561,9 +580,10 @@ def build_financial_report(
         _breakeven_section(kpis, df),
         Spacer(1, 0.2 * cm),
         _P(
-            "Break-even: unidades adicionales necesarias para que el EBITDA sea ≥ 0. "
-            "EBITDA 25%: unidades adicionales para alcanzar un margen del 25%. "
-            "Los ingresos 'c/IVA' representan el valor en caja (× 1.19).",
+            "Ticket promedio = ingresos sin IVA / tickets únicos (Id. Venta). "
+            "Break-even: tickets adicionales para EBITDA ≥ 0. "
+            "EBITDA 25%: tickets adicionales para margen del 25%. "
+            "Ingresos 'c/IVA' = valor en caja (× 1.19).",
             "info",
         ),
         Spacer(1, 0.4 * cm),
@@ -596,7 +616,7 @@ def build_financial_report(
 
     # ── Sales by product — Especialidades ─────────────────────────────────────
     story += [
-        _P("Ventas por Producto — Especialidades (top 20)", "section"),
+        _P("Ventas por Producto — Especialidades", "section"),
         _HR(),
         Spacer(1, 0.15 * cm),
         _sales_table(df, categoria="Especialidades"),
@@ -605,7 +625,7 @@ def build_financial_report(
 
     # ── Sales by product — Extras ──────────────────────────────────────────────
     story += [
-        _P("Ventas por Producto — Extras (top 20)", "section"),
+        _P("Ventas por Producto — Extras", "section"),
         _HR(),
         Spacer(1, 0.15 * cm),
         _sales_table(df, categoria="Extras"),

@@ -74,6 +74,7 @@ export default function App() {
   const { handleDownloadPdf, pdfLoading } = useDownloadPdf(
     selectedMonth,
     (msg) => setToast({ open: true, message: msg }),
+    months,
   );
   const { downloadExcel, excelLoading } = useDownloadExcel(
     selectedMonth,

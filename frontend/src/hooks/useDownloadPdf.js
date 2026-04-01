@@ -1,17 +1,15 @@
 import { useState } from "react";
 import axios from "axios";
-import { fmtMonth, CURRENT_MONTH } from "../utils/formatters";
 
-const useDownloadPdf = (selectedMonth, onError) => {
+const useDownloadPdf = (selectedMonth, onError, months = []) => {
   const [pdfLoading, setPdfLoading] = useState(false);
 
   const handleDownloadPdf = async () => {
     setPdfLoading(true);
     try {
-      const params =
-        selectedMonth && selectedMonth !== "all"
-          ? { month: selectedMonth }
-          : {};
+      const specificMonth =
+        selectedMonth && selectedMonth !== "all" ? selectedMonth : null;
+      const params = specificMonth ? { month: specificMonth } : {};
       const res = await axios.get("/api/report/pdf/", {
         params,
         responseType: "blob",
@@ -21,10 +19,15 @@ const useDownloadPdf = (selectedMonth, onError) => {
       );
       const a = document.createElement("a");
       a.href = url;
-      a.download =
-        selectedMonth && selectedMonth !== "all"
-          ? `reporte-${selectedMonth}.pdf`
-          : `reporte-financiero-${fmtMonth(CURRENT_MONTH)}.pdf`;
+      if (specificMonth) {
+        a.download = `reporte-${specificMonth}.pdf`;
+      } else if (months.length === 1) {
+        a.download = `reporte-${months[0]}.pdf`;
+      } else if (months.length > 1) {
+        a.download = `reporte-${months[0]}_a_${months[months.length - 1]}.pdf`;
+      } else {
+        a.download = "reporte-financiero.pdf";
+      }
       a.click();
       URL.revokeObjectURL(url);
     } catch (_) {

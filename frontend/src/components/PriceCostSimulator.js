@@ -228,10 +228,29 @@ const PriceCostSimulator = ({ salesLoaded, expensesLoaded, selectedMonth }) => {
           Simulador de Precio y Costos
         </Typography>
       </Box>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+      <Typography
+        variant="body2"
+        color="text.secondary"
+        sx={{ mb: data?.date_from ? 1 : 3 }}
+      >
         Simula el impacto de subir el precio de venta y/o un alza en el costo de
         ingredientes sobre el EBITDA del período seleccionado.
       </Typography>
+      {data?.date_from && (
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ display: "block", mb: 2.5 }}
+        >
+          Período de cálculo:{" "}
+          <strong style={{ color: "#94A3B8" }}>
+            {data.date_from} — {data.date_to}
+          </strong>
+          {" · "}
+          {data.total_tickets.toLocaleString("es-CL")} tickets ·{" "}
+          {data.esp_units_sold.toLocaleString("es-CL")} uds. Especialidades
+        </Typography>
+      )}
 
       {/* Inputs */}
       <Box sx={{ display: "flex", gap: 4, flexWrap: "wrap", mb: 3 }}>
@@ -430,6 +449,18 @@ const PriceCostSimulator = ({ salesLoaded, expensesLoaded, selectedMonth }) => {
             current={data.cmv_sin_iva_current}
             projected={data.cmv_sin_iva_projected}
             formatter={CLP}
+          />
+          <CompareRow
+            label={`Ticket promedio (${data.total_tickets?.toLocaleString("es-CL")} tickets)`}
+            current={data.avg_ticket_current}
+            projected={data.avg_ticket_projected}
+            formatter={CLP}
+          />
+          <CompareRow
+            label="Contribución s/IVA %"
+            current={data.contribution_pct_current}
+            projected={data.contribution_pct_projected}
+            formatter={(v) => `${v.toFixed(1)}%`}
           />
           <CompareRow
             label="EBITDA"

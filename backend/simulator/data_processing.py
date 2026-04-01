@@ -739,12 +739,35 @@ def simulate_price_cost(
         (esp_ingreso_sin_iva + revenue_delta) / esp_units if esp_units > 0 else 0
     )
 
+    total_tickets = int(df["Id. Venta"].nunique()) if "Id. Venta" in df.columns else 0
+    avg_ticket_current = (
+        total_ingreso_sin_iva / total_tickets if total_tickets > 0 else 0
+    )
+    avg_ticket_projected = projected_ingreso / total_tickets if total_tickets > 0 else 0
+    contribution_pct_current = (
+        (total_ingreso_sin_iva - total_costo_ing_sin_iva) / total_ingreso_sin_iva * 100
+        if total_ingreso_sin_iva > 0
+        else 0
+    )
+    projected_cmv = total_costo_ing_sin_iva + cost_delta
+    contribution_pct_projected = (
+        (projected_ingreso - projected_cmv) / projected_ingreso * 100
+        if projected_ingreso > 0
+        else 0
+    )
+
+    date_from = df["created_at"].min().strftime("%d/%m/%Y") if not df.empty else ""
+    date_to = df["created_at"].max().strftime("%d/%m/%Y") if not df.empty else ""
+
     def r(v):
         return float(round(v, 0))
 
     return {
         "units_sold": int(total_units),
         "esp_units_sold": int(esp_units),
+        "total_tickets": total_tickets,
+        "date_from": date_from,
+        "date_to": date_to,
         "current_ingreso_sin_iva": r(total_ingreso_sin_iva),
         "current_ebitda": r(current_ebitda),
         "current_ebitda_pct": round(current_ebitda_pct, 1),
@@ -759,7 +782,11 @@ def simulate_price_cost(
         "avg_price_clp_current": r(avg_price_sin_iva * 1.19),
         "avg_price_clp_projected": r(avg_price_sin_iva_new * 1.19),
         "cmv_sin_iva_current": r(total_costo_ing_sin_iva),
-        "cmv_sin_iva_projected": r(total_costo_ing_sin_iva + cost_delta),
+        "cmv_sin_iva_projected": r(projected_cmv),
+        "avg_ticket_current": r(avg_ticket_current),
+        "avg_ticket_projected": r(avg_ticket_projected),
+        "contribution_pct_current": round(contribution_pct_current, 1),
+        "contribution_pct_projected": round(contribution_pct_projected, 1),
     }
 
 
@@ -786,7 +813,9 @@ def get_promotion_advisor(df: pd.DataFrame) -> Dict[str, Any]:
             if r["cmv_pct"] <= 0 or r["cantidad"] < 3:
                 continue
             volume_score = min(r["cantidad"] / max_qty, 1.0) * 100
-            score = r["margen_pct"] * 0.5 + (100 - r["cmv_pct"]) * 0.3 + volume_score * 0.2
+            score = (
+                r["margen_pct"] * 0.5 + (100 - r["cmv_pct"]) * 0.3 + volume_score * 0.2
+            )
             razones = []
             if r["margen_pct"] >= 70:
                 razones.append("Margen excelente")
@@ -822,13 +851,20 @@ def get_promotion_advisor(df: pd.DataFrame) -> Dict[str, Any]:
             .reindex(range(24), fill_value=0)
         )
         ue_hourly = {
-            h: {"count": int(hg.loc[h, "count"]), "revenue": float(round(hg.loc[h, "revenue"], 0))}
+            h: {
+                "count": int(hg.loc[h, "count"]),
+                "revenue": float(round(hg.loc[h, "revenue"], 0)),
+            }
             for h in range(24)
         }
 
     peak_count = max((v["count"] for v in ue_hourly.values()), default=0)
     best_hours = sorted(
-        [h for h, v in ue_hourly.items() if v["count"] >= peak_count * 0.6 and v["count"] > 0],
+        [
+            h
+            for h, v in ue_hourly.items()
+            if v["count"] >= peak_count * 0.6 and v["count"] > 0
+        ],
         key=lambda h: ue_hourly[h]["count"],
         reverse=True,
     )[:4]
