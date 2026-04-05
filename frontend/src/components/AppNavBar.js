@@ -9,6 +9,8 @@ import {
   IconButton,
   Menu,
   MenuItem,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import LocalPizzaIcon from "@mui/icons-material/LocalPizza";
 import TableChartIcon from "@mui/icons-material/TableChart";
@@ -17,6 +19,7 @@ import PriceCheckIcon from "@mui/icons-material/PriceCheck";
 import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
 import TableViewIcon from "@mui/icons-material/TableView";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import DownloadIcon from "@mui/icons-material/Download";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import TravelExploreIcon from "@mui/icons-material/TravelExplore";
 import RefreshIcon from "@mui/icons-material/Refresh";
@@ -36,6 +39,8 @@ const AppNavBar = ({
   onReset,
 }) => {
   const [menuAnchor, setMenuAnchor] = useState(null);
+  const theme = useTheme();
+  const isSmall = useMediaQuery(theme.breakpoints.down("sm"));
 
   const closeMenu = () => setMenuAnchor(null);
 
@@ -50,19 +55,32 @@ const AppNavBar = ({
           maxWidth: 1200,
           mx: "auto",
           width: "100%",
-          px: { xs: 2, md: 4 },
-          gap: 1,
+          px: { xs: 1, md: 4 },
+          gap: { xs: 0.5, md: 1 },
+          minHeight: { xs: 56, sm: 64 },
         }}
       >
         {/* Brand */}
-        <LocalPizzaIcon sx={{ color: "primary.main", fontSize: 28 }} />
-        <Box sx={{ flexGrow: 1 }}>
-          <Typography variant="h6" fontWeight={700} sx={{ lineHeight: 1.2 }}>
+        <LocalPizzaIcon
+          sx={{ color: "primary.main", fontSize: { xs: 22, sm: 28 }, mr: 0.5 }}
+        />
+        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+          <Typography
+            variant="h6"
+            fontWeight={700}
+            sx={{
+              lineHeight: 1.2,
+              fontSize: { xs: "0.95rem", sm: "1.25rem" },
+              whiteSpace: "nowrap",
+            }}
+          >
             FUDO Analytics
           </Typography>
-          <Typography variant="caption" color="text.secondary">
-            Food Finance Dashboard
-          </Typography>
+          {!isSmall && (
+            <Typography variant="caption" color="text.secondary">
+              Food Finance Dashboard
+            </Typography>
+          )}
         </Box>
 
         {/* Table buttons + Descargar — only when both files are loaded */}
@@ -71,62 +89,119 @@ const AppNavBar = ({
             data-tour="appbar-tables"
             sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
           >
-            <Tooltip title="Ver tabla de ventas">
-              <Button
-                size="small"
-                startIcon={<TableChartIcon />}
-                onClick={onOpenSalesTable}
-                sx={{
-                  color: "text.secondary",
-                  "&:hover": { color: "text.primary" },
-                }}
-              >
-                Ventas
-              </Button>
-            </Tooltip>
-            <Tooltip title="Ver tabla de gastos">
-              <Button
-                size="small"
-                startIcon={<ReceiptLongIcon />}
-                onClick={onOpenExpensesTable}
-                sx={{
-                  color: "text.secondary",
-                  "&:hover": { color: "text.primary" },
-                }}
-              >
-                Gastos
-              </Button>
-            </Tooltip>
-            <Tooltip title="Ver precios y márgenes por producto">
-              <Button
-                size="small"
-                startIcon={<PriceCheckIcon />}
-                onClick={onOpenPricesTable}
-                sx={{
-                  color: "text.secondary",
-                  "&:hover": { color: "text.primary" },
-                }}
-              >
-                Precios
-              </Button>
-            </Tooltip>
+            {isSmall ? (
+              <>
+                <Tooltip title="Ver tabla de ventas">
+                  <IconButton
+                    size="small"
+                    onClick={onOpenSalesTable}
+                    sx={{ color: "text.secondary" }}
+                  >
+                    <TableChartIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Ver tabla de gastos">
+                  <IconButton
+                    size="small"
+                    onClick={onOpenExpensesTable}
+                    sx={{ color: "text.secondary" }}
+                  >
+                    <ReceiptLongIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Ver precios y márgenes por producto">
+                  <IconButton
+                    size="small"
+                    onClick={onOpenPricesTable}
+                    sx={{ color: "text.secondary" }}
+                  >
+                    <PriceCheckIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </>
+            ) : (
+              <>
+                <Tooltip title="Ver tabla de ventas">
+                  <Button
+                    size="small"
+                    startIcon={<TableChartIcon />}
+                    onClick={onOpenSalesTable}
+                    sx={{
+                      color: "text.secondary",
+                      "&:hover": { color: "text.primary" },
+                    }}
+                  >
+                    Ventas
+                  </Button>
+                </Tooltip>
+                <Tooltip title="Ver tabla de gastos">
+                  <Button
+                    size="small"
+                    startIcon={<ReceiptLongIcon />}
+                    onClick={onOpenExpensesTable}
+                    sx={{
+                      color: "text.secondary",
+                      "&:hover": { color: "text.primary" },
+                    }}
+                  >
+                    Gastos
+                  </Button>
+                </Tooltip>
+                <Tooltip title="Ver precios y márgenes por producto">
+                  <Button
+                    size="small"
+                    startIcon={<PriceCheckIcon />}
+                    onClick={onOpenPricesTable}
+                    sx={{
+                      color: "text.secondary",
+                      "&:hover": { color: "text.primary" },
+                    }}
+                  >
+                    Precios
+                  </Button>
+                </Tooltip>
+              </>
+            )}
 
             {/* Descargar dropdown */}
-            <Button
-              size="small"
-              data-tour="pdf-button"
-              endIcon={<ArrowDropDownIcon />}
-              onClick={(e) => setMenuAnchor(e.currentTarget)}
-              disabled={pdfLoading || excelLoading}
-              sx={{
-                color: "primary.main",
-                borderColor: "primary.main",
-                border: "1px solid",
-                "&:hover": { bgcolor: "#F9731620" },
-              }}
-            >
-              {pdfLoading || excelLoading ? "Generando…" : "Descargar"}
-            </Button>
+            {isSmall ? (
+              <Tooltip
+                title={pdfLoading || excelLoading ? "Generando…" : "Descargar"}
+              >
+                <span>
+                  <IconButton
+                    size="small"
+                    data-tour="pdf-button"
+                    onClick={(e) => setMenuAnchor(e.currentTarget)}
+                    disabled={pdfLoading || excelLoading}
+                    sx={{
+                      color: "primary.main",
+                      border: "1px solid",
+                      borderColor: "primary.main",
+                      borderRadius: 1,
+                    }}
+                  >
+                    <DownloadIcon fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            ) : (
+              <Button
+                size="small"
+                data-tour="pdf-button"
+                endIcon={<ArrowDropDownIcon />}
+                onClick={(e) => setMenuAnchor(e.currentTarget)}
+                disabled={pdfLoading || excelLoading}
+                sx={{
+                  color: "primary.main",
+                  borderColor: "primary.main",
+                  border: "1px solid",
+                  "&:hover": { bgcolor: "#F9731620" },
+                }}
+              >
+                {pdfLoading || excelLoading ? "Generando…" : "Descargar"}
+              </Button>
+            )}
             <Menu
               anchorEl={menuAnchor}
               open={!!menuAnchor}
