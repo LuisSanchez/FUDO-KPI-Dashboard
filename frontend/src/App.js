@@ -42,9 +42,6 @@ import BalanceIcon from "@mui/icons-material/Balance";
 import LocalPizzaIcon from "@mui/icons-material/LocalPizza";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 
-if (process.env.NODE_ENV === "development") {
-  axios.defaults.baseURL = "http://localhost:8000";
-}
 
 // ── Main App ──────────────────────────────────────────────────────────────────
 

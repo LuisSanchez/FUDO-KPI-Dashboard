@@ -40,6 +40,12 @@ dev:
 	uv pip install -r ./backend/requirements.txt
 	cd ./frontend && npm install
 
+compose-up:
+	docker compose up
+
+compose-down:
+	docker compose down
+
 build:
 	docker build -t omp .
 	make up

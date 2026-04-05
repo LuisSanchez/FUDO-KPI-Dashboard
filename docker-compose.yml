@@ -1,0 +1,49 @@
+# Development compose — live reload for both backend and frontend.
+# Usage:
+#   docker compose up          # start both services
+#   docker compose up backend  # backend only
+#   docker compose up frontend # frontend only
+
+services:
+  backend:
+    image: python:3.12-slim
+    working_dir: /app
+    volumes:
+      - ./backend:/app                          # live-reload: changes are picked up immediately
+      - backend-deps:/usr/local/lib/python3.12  # cache pip installs across restarts
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/pizza_simulator/.env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - DJANGO_SETTINGS_MODULE=pizza_simulator.settings
+    command: >
+      sh -c "pip install -q -r requirements.txt &&
+             python manage.py migrate --noinput &&
+             python manage.py runserver 0.0.0.0:8000"
+    restart: unless-stopped
+
+  frontend:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./frontend:/app                         # live-reload: React hot-reloads on save
+      - frontend-deps:/app/node_modules         # cache npm installs across restarts
+    ports:
+      - "3000:3000"
+    environment:
+      - CHOKIDAR_USEPOLLING=true                # needed for file-watch inside Docker on macOS
+      - WDS_SOCKET_PORT=3000
+      - REACT_APP_BACKEND_URL=http://backend:8000  # proxy target inside Docker network
+    command: >
+      sh -c "npm install --legacy-peer-deps --silent &&
+             npm start"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  backend-deps:
+  frontend-deps:
