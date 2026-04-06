@@ -6,12 +6,15 @@ A full-stack web application that analyzes pizza store profitability using FUDO 
 
 - **Drag & Drop Upload** — Sales (`Adiciones` sheet) and expenses (`Gastos` sheet) Excel files
 - **KPI Dashboard** — Real-time EBITDA, CMV%, margins, and expense breakdown (operational vs. loans vs. CapEx)
-- **Break-even Simulator** — Per-product simulation showing units needed for EBITDA = 0 and EBITDA = 25%
+- **Break-even Simulator** — Per-ticket simulation showing tickets needed for EBITDA = 0 and EBITDA = 25%
 - **Projection Simulator** — Current-month projection: daily sales pace needed to close the gap before month end
 - **Visual Analytics** — Charts by category (Especialidades / Extras): daily trend with 7-day rolling average, by-hour, by-weekday, top products by category, distribution, and scatter
+- **Channel Split Charts** — Doughnut (units & revenue: Uber Eats vs Local) and grouped bar (Especialidades × Extras × channel)
+- **Uber Eats Analysis** — Per-product margin after 25% commission (green = profitable, red = losing money); channel KPI strip; break-even volume in units/day using operational fixed costs
 - **Data Tables** — Searchable, sortable tables for sales by product and category; expense detail with type filter; per-product pricing with Uber Eats price column, channel filter, and category filter
 - **Promotion Advisor** — Data-driven Uber Eats promotion recommendations: top 5 products per category ranked by composite score (margin, cost efficiency, volume), hourly activity heatmap, and average ticket comparison
 - **Exports** — "Descargar" dropdown: PDF financial report, Excel for Especialidades, Excel for Extras (all products, full margin breakdown)
+- **Responsive Navbar** — On small screens, table buttons collapse to icon-only; "Descargar" becomes a download icon
 
 ## Project Structure
 
@@ -34,12 +37,15 @@ omp/
 │       ├── charts/
 │       │   ├── chartConfig.js
 │       │   ├── ChartsSection.js
-│       │   ├── SalesTrend.js  # Full-width daily trend + rolling average
+│       │   ├── SalesTrend.js           # Full-width daily trend + rolling average
 │       │   ├── SalesByDay.js / SalesByWeekday.js
 │       │   ├── SalesByHour.js / RevenueByHour.js
 │       │   ├── TopProductsByQuantity.js / TopProductsByRevenue.js
 │       │   ├── ProductDistribution.js
-│       │   └── QuantityVsRevenue.js
+│       │   ├── QuantityVsRevenue.js
+│       │   ├── ChannelSplitChart.js    # Doughnuts: Uber Eats vs Local
+│       │   ├── ChannelByCategoryChart.js # Grouped bar: category × channel
+│       │   └── UberEatsMarginChart.js  # Margin% per product on Uber Eats
 │       ├── hooks/
 │       │   ├── useDownloadPdf.js
 │       │   ├── useDownloadExcel.js
@@ -48,7 +54,7 @@ omp/
 │       │   └── formatters.js        # CLP, PCT, fmtMonth, cmvColor, CURRENT_MONTH
 │       ├── theme.js                 # MUI dark theme
 │       └── components/
-│           ├── AppNavBar.js
+│           ├── AppNavBar.js         # Responsive: icon-only on mobile
 │           ├── DropzoneCard.js
 │           ├── EbitdaGauge.js
 │           ├── ExpensesTableModal.js
@@ -57,9 +63,10 @@ omp/
 │           ├── PriceCostSimulator.js
 │           ├── ProductPricesModal.js
 │           ├── ProjectionSimulator.js
-│           ├── PromotionAdvisor.js  # Uber Eats promotion recommendations
+│           ├── PromotionAdvisor.js   # Uber Eats promotion recommendations
 │           ├── SalesTableModal.js
-│           └── SimCard.js
+│           ├── SimCard.js
+│           └── UberEatsSection.js   # Channel charts + margin + break-even
 └── README.md
 ```
 
@@ -86,22 +93,20 @@ omp/
 
 ## Quick Start
 
+### Local development
 ```bash
-# Install everything and run both servers
-make dev
-make run
+make dev   # Install dependencies
+make run   # Run Django (8000) + React (3000) concurrently
 ```
 
-Or separately:
-
+### Docker (live reload)
 ```bash
-# Backend (port 8000)
-cd backend && pip install -r requirements.txt
-python manage.py migrate
-python manage.py runserver
+make compose-up   # Both services with hot reload
+```
 
-# Frontend (port 3000)
-cd frontend && npm install && npm start
+### Docker (production image)
+```bash
+make build   # Build & run single-image Docker container on port 8000
 ```
 
 ## Excel File Requirements
@@ -122,12 +127,13 @@ Required columns: `Id`, `Fecha`, `Fecha de vencimiento`, `Proveedor`, `Categorí
 | POST | `/api/calculate/` | KPI/EBITDA calculation (`producto`, `month`) |
 | GET | `/api/data/sales/` | Per-product sales table |
 | GET | `/api/data/expenses/` | Expense detail table |
-| GET | `/api/data/charts/` | All chart datasets |
+| GET | `/api/data/charts/` | All chart datasets (incl. channel split by category) |
 | GET | `/api/data/product-prices/` | Per-product pricing & margins (incl. Uber Eats avg price) |
 | GET | `/api/simulate/price-cost/` | EBITDA simulation (`?price_increase&cost_increase&month`) |
 | GET | `/api/report/pdf/` | Download PDF report (`?month=YYYY-MM`) |
 | GET | `/api/report/excel/` | Download Excel export (`?categoria=Especialidades\|Extras&month=YYYY-MM`) |
 | GET | `/api/advisor/promotions/` | Promotion recommendations (`?month=YYYY-MM`) |
+| GET | `/api/uber-eats/analysis/` | Uber Eats margin + break-even analysis (`?month=YYYY-MM`) |
 | POST | `/api/reset/` | Clear session data |
 
 ## Key Business Logic
@@ -166,6 +172,23 @@ The simulator and the PDF report both use this ticket-based model. The `PriceCos
 
 **PDF report filename:** Derived from actual data period — single month → `reporte-YYYY-MM.pdf`; multiple months → `reporte-YYYY-MM_a_YYYY-MM.pdf`. Applied in both the backend `Content-Disposition` header and the frontend download hook.
 
+**Uber Eats commission:**
+```
+UBER_COMMISSION_RATE = 0.25   (25% of gross sale price)
+```
+Uber Eats charges 25% + IVA (19%) on the net price. Since IVA on the commission is a recoverable input credit for the restaurant, the net effective rate on the gross sale is 25%. Applied in `sales_clean_up_data` and `get_uber_eats_analysis`.
+
+**Uber Eats break-even (units/day):**
+```
+contribution_per_unit = avg_price_sin_iva − avg_ingredient_cost − avg_commission_sin_iva
+breakeven_units_total = fixed_costs / contribution_per_unit
+breakeven_per_day     = breakeven_units_total / days_in_period
+```
+
+**Channel split data** (returned by `/api/data/charts/`):
+- `channel_split`: `{labels, units, revenue}` — Uber Eats vs Local totals
+- `channel_by_category`: `{Especialidades: {Uber Eats: {units, revenue}, Local: ...}, Extras: {...}}`
+
 **Promotion advisor scoring:**
 ```
 score = margen_pct × 0.5 + (100 − cmv_pct) × 0.3 + volume_score × 0.2
@@ -173,6 +196,12 @@ score = margen_pct × 0.5 + (100 − cmv_pct) × 0.3 + volume_score × 0.2
 - `volume_score` = (product qty / max qty in category) × 100, capped at 100
 - Products with fewer than 3 units sold or CMV = 0 are excluded
 - Top 5 per category (Especialidades, Extras) are returned
+
+## Docker Notes
+
+- `docker-compose.yml` — development setup with bind-mount volumes for live reload. `CHOKIDAR_USEPOLLING=true` enables file watching inside Docker on macOS.
+- `setupProxy.js` — proxies `/api` to `REACT_APP_BACKEND_URL` (Docker: `http://backend:8000`) or `http://localhost:8000` locally. **Do not set `axios.defaults.baseURL`** — it bypasses the proxy and breaks session cookies.
+- Production image (`Dockerfile`) — multi-stage build: React compiled to static files served by Django via WhiteNoise.
 
 ## Development Notes
 

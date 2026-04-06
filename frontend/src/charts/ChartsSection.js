@@ -65,7 +65,7 @@ const ChartCard = ({ title, children, modalContent, onOpenModal }) => (
   </Paper>
 );
 
-const ChartsSection = ({ salesLoaded, selectedMonth }) => {
+const ChartsSection = ({ salesLoaded, selectedMonth, onChartData }) => {
   const [chartData, setChartData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -81,12 +81,13 @@ const ChartsSection = ({ salesLoaded, selectedMonth }) => {
           : "";
       const res = await axios.get(`/api/data/charts/${params}`);
       setChartData(res.data);
+      onChartData?.(res.data);
     } catch (err) {
       setError(err.response?.data?.error || "Error al cargar los gráficos");
     } finally {
       setLoading(false);
     }
-  }, [selectedMonth]);
+  }, [selectedMonth, onChartData]);
 
   useEffect(() => {
     if (salesLoaded) fetchCharts();

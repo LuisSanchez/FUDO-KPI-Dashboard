@@ -6,6 +6,7 @@ import AppNavBar from "./components/AppNavBar";
 import ProjectionSimulator from "./components/ProjectionSimulator";
 import PriceCostSimulator from "./components/PriceCostSimulator";
 import PromotionAdvisor from "./components/PromotionAdvisor";
+import UberEatsSection from "./components/UberEatsSection";
 import KpiRow from "./components/KpiRow";
 import DropzoneCard from "./components/DropzoneCard";
 import EbitdaGauge from "./components/EbitdaGauge";
@@ -42,7 +43,6 @@ import BalanceIcon from "@mui/icons-material/Balance";
 import LocalPizzaIcon from "@mui/icons-material/LocalPizza";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 
-
 // ── Main App ──────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -64,6 +64,7 @@ export default function App() {
   const [expensesTableData, setExpensesTableData] = useState([]);
   const [pricesTableData, setPricesTableData] = useState([]);
   const [toast, setToast] = useState({ open: false, message: "" });
+  const [chartData, setChartData] = useState(null);
 
   const bothUploaded = !!(salesFile && expensesFile);
 
@@ -493,7 +494,7 @@ export default function App() {
                 </Typography>
                 <Box sx={{ textAlign: "center", py: 1.5 }}>
                   <Typography
-                    variant="h2"
+                    variant="h3"
                     fontWeight={700}
                     sx={{
                       color:
@@ -658,10 +659,18 @@ export default function App() {
           selectedMonth={selectedMonth}
         />
 
+        {/* ── Uber Eats Analysis ── */}
+        <UberEatsSection
+          salesLoaded={!!salesFile}
+          selectedMonth={selectedMonth}
+          chartData={chartData}
+        />
+
         {/* ── Charts ── */}
         <ChartsSection
           salesLoaded={!!salesFile}
           selectedMonth={selectedMonth}
+          onChartData={setChartData}
         />
       </Container>
 

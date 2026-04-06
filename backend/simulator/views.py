@@ -21,6 +21,7 @@ from .data_processing import (
     simulate_price_cost,
     get_sales_excel,
     get_promotion_advisor,
+    get_uber_eats_analysis,
 )
 
 
@@ -489,5 +490,38 @@ def promotion_advisor(request):
     except Exception as e:
         return Response(
             {"error": f"Error computing advisor: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["GET"])
+def uber_eats_analysis(request):
+    """Uber Eats margin analysis + optional break-even when expense data is available."""
+    store = _get_store(request)
+    if store.sales_df_pickle is None:
+        return Response(
+            {"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    month = request.query_params.get("month")
+
+    try:
+        df_sales = _load_df(store.sales_df_pickle).copy()
+        if month:
+            df_sales = df_sales[
+                df_sales["created_at"].dt.to_period("M").astype(str) == month
+            ]
+
+        df_expenses = (
+            _load_df(store.expenses_df_pickle).copy()
+            if store.expenses_df_pickle is not None
+            else None
+        )
+
+        result = get_uber_eats_analysis(df_sales, df_expenses)
+        return Response(result)
+    except Exception as e:
+        return Response(
+            {"error": f"Error computing Uber Eats analysis: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )

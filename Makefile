@@ -41,7 +41,7 @@ dev:
 	cd ./frontend && npm install
 
 compose-up:
-	docker compose up
+	docker compose up -d
 
 compose-down:
 	docker compose down
