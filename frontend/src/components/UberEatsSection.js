@@ -223,7 +223,7 @@ const UberEatsSection = ({ salesLoaded, selectedMonth, chartData }) => {
         <Typography variant="h6" fontWeight={700}>
           Análisis Uber Eats
         </Typography>
-        {data?.commission_rate_pct && (
+        {data?.commission_rate_pct != null && (
           <Chip
             label={`Comisión ${data.commission_rate_pct}%`}
             size="small"

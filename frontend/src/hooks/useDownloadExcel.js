@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import axios from "axios";
 import { CURRENT_MONTH } from "../utils/formatters";
 
 const useDownloadExcel = (selectedMonth, onError) => {
   const [excelLoading, setExcelLoading] = useState(false);
 
-  const downloadExcel = async (categoria) => {
+  const downloadExcel = useCallback(async (categoria) => {
     setExcelLoading(true);
     try {
       const params = { categoria };
@@ -36,7 +36,7 @@ const useDownloadExcel = (selectedMonth, onError) => {
     } finally {
       setExcelLoading(false);
     }
-  };
+  }, [selectedMonth, onError]);
 
   return { downloadExcel, excelLoading };
 };

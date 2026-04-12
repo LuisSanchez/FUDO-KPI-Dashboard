@@ -8,7 +8,7 @@ OMP is a personal business tool for a pizza franchise owner to analyze sales vs 
 
 **Why:** The engineer wants to provide actionable business insights to non-technical franchise members.
 
-**No persistence yet by design:** SQLite DB exists in backend/ but is intentionally unused for now. Will add a proper DB once the app is tuned. Do not suggest adding persistence.
+**Session-based storage:** SQLite is used only for short-lived `UserSessionData` (pickled DataFrames, 24h expiry). No persistent user accounts or business data by design — each upload is a fresh session. Do not suggest adding user persistence unless asked.
 
 **Data source:** Excel exports from FUDO software (POS system). All data is in Spanish. Sales file uses "Adiciones" sheet; expenses file uses "Gastos" sheet.
 

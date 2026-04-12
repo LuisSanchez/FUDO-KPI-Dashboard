@@ -193,7 +193,7 @@ def _kpi_summary_table(kpis):
             "  Comisión Uber Eats",
             _clp(-comision_sin_iva),
             Paragraph(
-                f"{comision_pct_total:.1f}% de ingresos · 30% de pedidos Uber",
+                f"{comision_pct_total:.1f}% de ingresos · 25% por pedido Uber Eats (IVA de comisión: crédito fiscal)",
                 NOTA_STYLE,
             ),
         ],

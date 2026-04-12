@@ -132,7 +132,7 @@ export default function App() {
         setLoading(false);
       }
     },
-    [calculate],
+    [],
   );
 
   const onExpensesDrop = useCallback(
@@ -269,7 +269,7 @@ export default function App() {
         onReset={handleReset}
       />
 
-      <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Container maxWidth={false} sx={{ py: 4, px: { xs: 2, sm: 4, md: 6, lg: 10 } }}>
         {error && (
           <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 3 }}>
             {error}
@@ -380,7 +380,7 @@ export default function App() {
                   label="Comisiones Uber Eats"
                   value={CLP(ing.comision_total)}
                   highlight="neg"
-                  tooltip="30% del ingreso de pedidos Uber Eats"
+                  tooltip="25% del ingreso bruto de pedidos Uber Eats (IVA de la comisión es crédito fiscal recuperable)"
                 />
                 <KpiRow
                   label="Margen bruto sin IVA"

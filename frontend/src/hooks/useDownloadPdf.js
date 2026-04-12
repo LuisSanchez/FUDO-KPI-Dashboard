@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import axios from "axios";
 
 const useDownloadPdf = (selectedMonth, onError, months = []) => {
   const [pdfLoading, setPdfLoading] = useState(false);
 
-  const handleDownloadPdf = async () => {
+  const handleDownloadPdf = useCallback(async () => {
     setPdfLoading(true);
     try {
       const specificMonth =
@@ -35,7 +35,7 @@ const useDownloadPdf = (selectedMonth, onError, months = []) => {
     } finally {
       setPdfLoading(false);
     }
-  };
+  }, [selectedMonth, onError, months]);
 
   return { handleDownloadPdf, pdfLoading };
 };
