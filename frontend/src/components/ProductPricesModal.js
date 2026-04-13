@@ -90,8 +90,8 @@ const ProductPricesModal = ({ open, onClose, data, month }) => {
       fullWidth
       PaperProps={{
         sx: {
-          bgcolor: "#1E293B",
-          border: "1px solid #334155",
+          border: "1px solid",
+          borderColor: "divider",
           maxHeight: "90vh",
         },
       }}
@@ -204,11 +204,7 @@ const ProductPricesModal = ({ open, onClose, data, month }) => {
             </TableHead>
             <TableBody>
               {sorted.map((row, i) => (
-                <TableRow
-                  key={i}
-                  hover
-                  sx={{ "&:hover": { bgcolor: "#ffffff08" } }}
-                >
+                <TableRow key={i} hover sx={{}}>
                   <TableCell sx={{ fontWeight: 500 }}>{row.Producto}</TableCell>
                   <TableCell>
                     <Chip

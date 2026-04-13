@@ -1,9 +1,11 @@
 import React, { useMemo } from "react";
 import { Bar } from "react-chartjs-2";
 import { Box, Typography } from "@mui/material";
-import { baseOptions, COLORS } from "./chartConfig";
+import { useChartConfig, COLORS } from "./chartConfig";
 
 const SalesByHour = ({ hourly, height = 260 }) => {
+  const { colors, baseOptions: bOpts } = useChartConfig();
+
   const data = useMemo(
     () => ({
       labels: hourly.labels.map((h) => `${String(h).padStart(2, "0")}:00`),
@@ -24,12 +26,12 @@ const SalesByHour = ({ hourly, height = 260 }) => {
 
   const options = useMemo(
     () => ({
-      ...baseOptions,
+      ...bOpts,
       plugins: {
-        ...baseOptions.plugins,
+        ...bOpts.plugins,
         legend: { display: false },
         tooltip: {
-          ...baseOptions.plugins.tooltip,
+          ...bOpts.plugins.tooltip,
           callbacks: {
             title: ([item]) => `Hora: ${item.label}`,
             label: ({ raw }) => ` ${raw.toLocaleString("es-CL")} ventas`,
@@ -37,30 +39,30 @@ const SalesByHour = ({ hourly, height = 260 }) => {
         },
       },
       scales: {
-        ...baseOptions.scales,
+        ...bOpts.scales,
         y: {
-          ...baseOptions.scales.y,
+          ...bOpts.scales.y,
           title: {
             display: true,
             text: "Cantidad de ventas",
-            color: COLORS.text,
+            color: colors.text,
             font: { size: 11 },
           },
           beginAtZero: true,
         },
         x: {
-          ...baseOptions.scales.x,
+          ...bOpts.scales.x,
           title: {
             display: true,
             text: "Hora del día",
-            color: COLORS.text,
+            color: colors.text,
             font: { size: 11 },
           },
           min: 10,
         },
       },
     }),
-    [],
+    [bOpts, colors],
   );
 
   return (

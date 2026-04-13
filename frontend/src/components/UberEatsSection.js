@@ -31,7 +31,8 @@ const KpiBox = ({ label, value, sub, color }) => (
     elevation={0}
     sx={{
       p: 2,
-      border: "1px solid #1E3A5F",
+      border: "1px solid",
+      borderColor: "divider",
       flex: 1,
       minWidth: 120,
     }}
@@ -53,7 +54,7 @@ const KpiBox = ({ label, value, sub, color }) => (
 const ChartCard = ({ children }) => (
   <Paper
     elevation={0}
-    sx={{ p: 3, border: "1px solid #1E3A5F", height: "100%" }}
+    sx={{ p: 3, border: "1px solid", borderColor: "divider", height: "100%" }}
   >
     {children}
   </Paper>
@@ -73,7 +74,10 @@ const BreakevenCard = ({ data }) => {
   const progress = Math.min(coverage_pct, 100);
 
   return (
-    <Paper elevation={0} sx={{ p: 3, border: "1px solid #1E3A5F" }}>
+    <Paper
+      elevation={0}
+      sx={{ p: 3, border: "1px solid", borderColor: "divider" }}
+    >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
         <Typography variant="subtitle1" fontWeight={700}>
           Punto de Equilibrio en Uber Eats
@@ -96,15 +100,22 @@ const BreakevenCard = ({ data }) => {
             tooltip: {
               sx: {
                 maxWidth: 340,
-                bgcolor: "#1E293B",
-                border: "1px solid #334155",
+                bgcolor: "background.paper",
+                color: "text.primary",
+                border: "1px solid",
+                borderColor: "divider",
+              },
+            },
+            arrow: {
+              sx: {
+                color: "background.paper",
               },
             },
           }}
         >
           <InfoOutlinedIcon
             fontSize="small"
-            sx={{ color: "#64748B", cursor: "help" }}
+            sx={{ color: "text.secondary", cursor: "help" }}
           />
         </Tooltip>
       </Box>
@@ -153,7 +164,7 @@ const BreakevenCard = ({ data }) => {
           sx={{
             height: 8,
             borderRadius: 4,
-            bgcolor: "#1E293B",
+            bgcolor: "action.hover",
             "& .MuiLinearProgress-bar": {
               bgcolor: isAbove ? "#22C55E" : "#F97316",
               borderRadius: 4,

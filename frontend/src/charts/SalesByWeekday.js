@@ -1,11 +1,11 @@
 import React, { useMemo } from "react";
 import { Bar } from "react-chartjs-2";
 import { Box, Typography } from "@mui/material";
-import { baseOptions, COLORS, CLP } from "./chartConfig";
+import { useChartConfig, COLORS, CLP } from "./chartConfig";
 
 const SalesByWeekday = ({ weekday, height = 260, showRevenue = false }) => {
+  const { colors, baseOptions: bOpts } = useChartConfig();
   const arr = showRevenue ? weekday.revenue : weekday.count;
-
   const bestIdx = useMemo(() => arr.indexOf(Math.max(...arr)), [arr]);
 
   const data = useMemo(
@@ -32,12 +32,12 @@ const SalesByWeekday = ({ weekday, height = 260, showRevenue = false }) => {
 
   const options = useMemo(
     () => ({
-      ...baseOptions,
+      ...bOpts,
       plugins: {
-        ...baseOptions.plugins,
+        ...bOpts.plugins,
         legend: { display: false },
         tooltip: {
-          ...baseOptions.plugins.tooltip,
+          ...bOpts.plugins.tooltip,
           callbacks: {
             title: ([item]) => item.label,
             label: ({ raw }) =>
@@ -48,27 +48,27 @@ const SalesByWeekday = ({ weekday, height = 260, showRevenue = false }) => {
         },
       },
       scales: {
-        ...baseOptions.scales,
+        ...bOpts.scales,
         y: {
-          ...baseOptions.scales.y,
+          ...bOpts.scales.y,
           beginAtZero: true,
           title: {
             display: true,
             text: showRevenue ? "Ingreso sin IVA (CLP)" : "Cantidad de ventas",
-            color: COLORS.text,
+            color: colors.text,
             font: { size: 11 },
           },
           ticks: {
-            ...baseOptions.scales.y.ticks,
+            ...bOpts.scales.y.ticks,
             callback: showRevenue
               ? (v) => `$${(v / 1_000_000).toFixed(1)}M`
               : undefined,
           },
         },
-        x: { ...baseOptions.scales.x },
+        x: { ...bOpts.scales.x },
       },
     }),
-    [showRevenue],
+    [showRevenue, bOpts, colors],
   );
 
   return (

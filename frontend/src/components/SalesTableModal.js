@@ -186,7 +186,7 @@ const ProductComparisonDialog = ({ product, data, onClose }) => {
       onClose={onClose}
       maxWidth="sm"
       fullWidth
-      PaperProps={{ sx: { bgcolor: "#1E293B", border: "1px solid #334155" } }}
+      PaperProps={{ sx: { border: "1px solid", borderColor: "divider" } }}
     >
       <DialogTitle
         sx={{
@@ -218,9 +218,13 @@ const ProductComparisonDialog = ({ product, data, onClose }) => {
         <TableContainer>
           <Table size="small">
             <TableHead>
-              <TableRow sx={{ bgcolor: "#0F172A" }}>
+              <TableRow sx={{ bgcolor: "background.default" }}>
                 <TableCell
-                  sx={{ color: "#64748B", fontSize: "0.72rem", width: "36%" }}
+                  sx={{
+                    color: "text.secondary",
+                    fontSize: "0.72rem",
+                    width: "36%",
+                  }}
                 >
                   Métrica
                 </TableCell>
@@ -252,7 +256,7 @@ const ProductComparisonDialog = ({ product, data, onClose }) => {
                   <TableCell
                     align="right"
                     sx={{
-                      color: "#64748B",
+                      color: "text.secondary",
                       fontWeight: 700,
                       fontSize: "0.72rem",
                     }}
@@ -270,20 +274,18 @@ const ProductComparisonDialog = ({ product, data, onClose }) => {
                     <TableRow key={`div-${i}`}>
                       <TableCell
                         colSpan={channels.length + (showTotal ? 2 : 1)}
-                        sx={{ py: 0, border: "none", bgcolor: "#0F172A40" }}
+                        sx={{ py: 0, border: "none", bgcolor: "action.hover" }}
                       >
-                        <Divider sx={{ borderColor: "#1E3A5F" }} />
+                        <Divider />
                       </TableCell>
                     </TableRow>
                   );
                 }
                 return (
-                  <TableRow
-                    key={m.label}
-                    hover
-                    sx={{ "&:hover": { bgcolor: "#ffffff05" } }}
-                  >
-                    <TableCell sx={{ color: "#94A3B8", fontSize: "0.75rem" }}>
+                  <TableRow key={m.label} hover>
+                    <TableCell
+                      sx={{ color: "text.secondary", fontSize: "0.75rem" }}
+                    >
                       {m.label}
                     </TableCell>
                     {channels.map((ch) => {
@@ -309,9 +311,10 @@ const ProductComparisonDialog = ({ product, data, onClose }) => {
                         align="right"
                         sx={{
                           fontWeight: m.bold ? 700 : 500,
-                          color: m.totalColor ?? "#94A3B8",
+                          color: m.totalColor ?? "text.secondary",
                           fontSize: "0.82rem",
-                          borderLeft: "1px solid #1E3A5F",
+                          borderLeft: "1px solid",
+                          borderLeftColor: "divider",
                         }}
                       >
                         {m.total}
@@ -333,7 +336,7 @@ const ProductRow = ({ row, onRowClick }) => (
   <TableRow
     hover
     onClick={() => onRowClick(row.Producto)}
-    sx={{ "&:hover": { bgcolor: "#ffffff08" }, cursor: "pointer" }}
+    sx={{ cursor: "pointer" }}
   >
     <TableCell>
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
@@ -424,7 +427,7 @@ const SectionHeader = ({ canal }) => {
       <TableCell
         colSpan={COLS.length}
         sx={{
-          bgcolor: "#0A1628",
+          bgcolor: "background.default",
           py: 0.75,
           borderBottom: `2px solid ${meta.color}30`,
         }}
@@ -458,12 +461,12 @@ const SubtotalRow = ({ rows, label, color }) => {
   const comP = pct(t.comision / 1.19, t.ingreso_sin_iva);
   const marP = pct(t.margen_sin_iva, t.ingreso_sin_iva);
   return (
-    <TableRow sx={{ bgcolor: "#0F172A80" }}>
+    <TableRow sx={{ bgcolor: "action.hover" }}>
       <TableCell
         colSpan={2}
         sx={{
           fontWeight: 600,
-          color: color ?? "#94A3B8",
+          color: color ?? "text.secondary",
           fontSize: "0.7rem",
           py: 0.5,
         }}
@@ -534,8 +537,10 @@ const GrandTotalRow = ({ rows }) => {
   const comP = pct(t.comision / 1.19, t.ingreso_sin_iva);
   const marP = pct(t.margen_sin_iva, t.ingreso_sin_iva);
   return (
-    <TableRow sx={{ bgcolor: "#0F172A", position: "sticky", bottom: 0 }}>
-      <TableCell colSpan={2} sx={{ fontWeight: 700, color: "#F1F5F9" }}>
+    <TableRow
+      sx={{ bgcolor: "background.default", position: "sticky", bottom: 0 }}
+    >
+      <TableCell colSpan={2} sx={{ fontWeight: 700, color: "text.primary" }}>
         TOTAL
       </TableCell>
       <TableCell align="right" sx={{ fontWeight: 700 }}>
@@ -618,11 +623,17 @@ const SalesTableModal = ({ open, onClose, data, month }) => {
   );
 
   const groups = useMemo(() => {
-    const known = CHANNEL_ORDER.filter((ch) =>
-      sorted.some((r) => r.canal === ch),
-    ).map((ch) => ({ canal: ch, rows: sorted.filter((r) => r.canal === ch) }));
-    const otherRows = sorted.filter((r) => !CHANNEL_ORDER.includes(r.canal));
-    if (otherRows.length > 0) known.push({ canal: "Otros", rows: otherRows });
+    // Single O(n) pass: bucket rows by channel
+    const buckets = {};
+    for (const r of sorted) {
+      const key = CHANNEL_ORDER.includes(r.canal) ? r.canal : "__other__";
+      (buckets[key] ??= []).push(r);
+    }
+    const known = CHANNEL_ORDER.filter((ch) => buckets[ch]?.length).map(
+      (ch) => ({ canal: ch, rows: buckets[ch] }),
+    );
+    if (buckets["__other__"]?.length)
+      known.push({ canal: "Otros", rows: buckets["__other__"] });
     return known;
   }, [sorted]);
 
@@ -640,8 +651,8 @@ const SalesTableModal = ({ open, onClose, data, month }) => {
         fullWidth
         PaperProps={{
           sx: {
-            bgcolor: "#1E293B",
-            border: "1px solid #334155",
+            border: "1px solid",
+            borderColor: "divider",
             maxHeight: "90vh",
           },
         }}

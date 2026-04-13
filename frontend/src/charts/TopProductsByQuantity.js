@@ -1,13 +1,15 @@
 import React, { useMemo } from "react";
 import { Bar } from "react-chartjs-2";
 import { Box, Typography } from "@mui/material";
-import { horizontalBaseOptions, COLORS, PALETTE } from "./chartConfig";
+import { useChartConfig, COLORS, PALETTE } from "./chartConfig";
 
 const TopProductsByQuantity = ({
   top10Quantity,
   height = 320,
   title = "Top 10 Productos por Unidades Vendidas",
 }) => {
+  const { colors, horizontalBaseOptions: hOpts } = useChartConfig();
+
   const sorted = useMemo(
     () => [...top10Quantity].sort((a, b) => a.cantidad - b.cantidad),
     [top10Quantity],
@@ -37,35 +39,35 @@ const TopProductsByQuantity = ({
 
   const options = useMemo(
     () => ({
-      ...horizontalBaseOptions,
+      ...hOpts,
       plugins: {
-        ...horizontalBaseOptions.plugins,
+        ...hOpts.plugins,
         legend: { display: false },
         tooltip: {
-          ...horizontalBaseOptions.plugins.tooltip,
+          ...hOpts.plugins.tooltip,
           callbacks: {
             label: ({ raw }) => ` ${raw.toLocaleString("es-CL")} unidades`,
           },
         },
       },
       scales: {
-        ...horizontalBaseOptions.scales,
+        ...hOpts.scales,
         x: {
-          ...horizontalBaseOptions.scales.x,
+          ...hOpts.scales.x,
           beginAtZero: true,
           title: {
             display: true,
             text: "Unidades",
-            color: COLORS.text,
+            color: colors.text,
             font: { size: 11 },
           },
         },
         y: {
-          ...horizontalBaseOptions.scales.y,
+          ...hOpts.scales.y,
           ticks: {
-            ...horizontalBaseOptions.scales.y.ticks,
+            ...hOpts.scales.y.ticks,
             font: { size: 11 },
-            callback: (_, i, ticks) => {
+            callback: (_, i) => {
               const label = sorted[i]?.Producto ?? "";
               return label.length > 22 ? label.slice(0, 20) + "…" : label;
             },
@@ -73,7 +75,7 @@ const TopProductsByQuantity = ({
         },
       },
     }),
-    [sorted],
+    [sorted, hOpts, colors],
   );
 
   return (

@@ -1,9 +1,11 @@
 import React, { useMemo } from "react";
 import { Scatter } from "react-chartjs-2";
 import { Box, Typography } from "@mui/material";
-import { baseOptions, COLORS, CLP } from "./chartConfig";
+import { useChartConfig, COLORS, CLP } from "./chartConfig";
 
 const QuantityVsRevenue = ({ scatter, height = 320 }) => {
+  const { colors, baseOptions: bOpts } = useChartConfig();
+
   const data = useMemo(
     () => ({
       datasets: [
@@ -28,12 +30,12 @@ const QuantityVsRevenue = ({ scatter, height = 320 }) => {
 
   const options = useMemo(
     () => ({
-      ...baseOptions,
+      ...bOpts,
       plugins: {
-        ...baseOptions.plugins,
+        ...bOpts.plugins,
         legend: { display: false },
         tooltip: {
-          ...baseOptions.plugins.tooltip,
+          ...bOpts.plugins.tooltip,
           callbacks: {
             title: ([item]) => item.raw.label,
             label: ({ raw }) => [
@@ -45,36 +47,36 @@ const QuantityVsRevenue = ({ scatter, height = 320 }) => {
       },
       scales: {
         x: {
-          ...baseOptions.scales.x,
+          ...bOpts.scales.x,
           beginAtZero: true,
           title: {
             display: true,
             text: "Unidades vendidas",
-            color: COLORS.text,
+            color: colors.text,
             font: { size: 11 },
           },
           ticks: {
-            ...baseOptions.scales.x.ticks,
+            ...bOpts.scales.x.ticks,
             callback: (v) => v.toLocaleString("es-CL"),
           },
         },
         y: {
-          ...baseOptions.scales.y,
+          ...bOpts.scales.y,
           beginAtZero: true,
           title: {
             display: true,
             text: "Ingreso sin IVA (CLP)",
-            color: COLORS.text,
+            color: colors.text,
             font: { size: 11 },
           },
           ticks: {
-            ...baseOptions.scales.y.ticks,
+            ...bOpts.scales.y.ticks,
             callback: (v) => `$${(v / 1_000_000).toFixed(1)}M`,
           },
         },
       },
     }),
-    [],
+    [bOpts, colors],
   );
 
   return (

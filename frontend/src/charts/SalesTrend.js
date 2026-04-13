@@ -6,7 +6,7 @@ import {
   ToggleButton,
   ToggleButtonGroup,
 } from "@mui/material";
-import { baseOptions, COLORS, CLP } from "./chartConfig";
+import { useChartConfig, COLORS, CLP } from "./chartConfig";
 
 /** Compute 7-day rolling average (trailing window). */
 function rollingAvg(arr, window = 7) {
@@ -19,6 +19,7 @@ function rollingAvg(arr, window = 7) {
 
 const SalesTrend = ({ daily, height = 300 }) => {
   const [mode, setMode] = useState("revenue"); // "revenue" | "count"
+  const { colors, baseOptions: bOpts } = useChartConfig();
 
   const arr = mode === "revenue" ? daily.revenue : daily.count;
   const avg7 = useMemo(() => rollingAvg(arr), [arr]);
@@ -56,17 +57,17 @@ const SalesTrend = ({ daily, height = 300 }) => {
 
   const options = useMemo(
     () => ({
-      ...baseOptions,
+      ...bOpts,
       plugins: {
-        ...baseOptions.plugins,
+        ...bOpts.plugins,
         legend: {
-          ...baseOptions.plugins.legend,
+          ...bOpts.plugins.legend,
           display: true,
           position: "top",
           align: "end",
         },
         tooltip: {
-          ...baseOptions.plugins.tooltip,
+          ...bOpts.plugins.tooltip,
           mode: "index",
           intersect: false,
           callbacks: {
@@ -82,16 +83,13 @@ const SalesTrend = ({ daily, height = 300 }) => {
         },
       },
       scales: {
-        ...baseOptions.scales,
+        ...bOpts.scales,
         x: {
-          ...baseOptions.scales.x,
-          ticks: {
-            ...baseOptions.scales.x.ticks,
-            maxTicksLimit: 16,
-          },
+          ...bOpts.scales.x,
+          ticks: { ...bOpts.scales.x.ticks, maxTicksLimit: 16 },
         },
         y: {
-          ...baseOptions.scales.y,
+          ...bOpts.scales.y,
           beginAtZero: true,
           title: {
             display: true,
@@ -99,11 +97,11 @@ const SalesTrend = ({ daily, height = 300 }) => {
               mode === "revenue"
                 ? "Ingreso sin IVA (CLP)"
                 : "Cantidad de ventas",
-            color: COLORS.text,
+            color: colors.text,
             font: { size: 11 },
           },
           ticks: {
-            ...baseOptions.scales.y.ticks,
+            ...bOpts.scales.y.ticks,
             callback:
               mode === "revenue"
                 ? (v) => `$${(v / 1_000_000).toFixed(1)}M`
@@ -112,7 +110,7 @@ const SalesTrend = ({ daily, height = 300 }) => {
         },
       },
     }),
-    [mode],
+    [mode, bOpts, colors],
   );
 
   return (
@@ -127,7 +125,7 @@ const SalesTrend = ({ daily, height = 300 }) => {
       >
         <Box>
           <Typography variant="subtitle2">Evolución Diaria del Mes</Typography>
-          <Typography variant="caption" sx={{ color: COLORS.text }}>
+          <Typography variant="caption" color="text.secondary">
             Barras: valor diario · Línea azul: promedio móvil 7 días
           </Typography>
         </Box>

@@ -40,7 +40,8 @@ const ChartCard = ({ title, children, modalContent, onOpenModal }) => (
     elevation={0}
     sx={{
       p: 3,
-      border: "1px solid #1E3A5F",
+      border: "1px solid",
+      borderColor: "divider",
       height: "100%",
       position: "relative",
     }}
@@ -340,7 +341,7 @@ const ChartsSection = ({ salesLoaded, selectedMonth, onChartData }) => {
             maxWidth="md"
             fullWidth
             PaperProps={{
-              sx: { bgcolor: "#1E293B", border: "1px solid #334155" },
+              sx: { border: "1px solid", borderColor: "divider" },
             }}
           >
             <DialogTitle

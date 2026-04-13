@@ -1,11 +1,13 @@
 import React, { useMemo } from "react";
 import { Doughnut } from "react-chartjs-2";
 import { Box, Typography } from "@mui/material";
-import { COLORS, PALETTE } from "./chartConfig";
+import { useChartConfig, PALETTE } from "./chartConfig";
 
 const DEFAULT_HEIGHT = 320;
 
 const ProductDistribution = ({ pieQuantity, height = DEFAULT_HEIGHT }) => {
+  const { colors, baseOptions: bOpts } = useChartConfig();
+
   const data = useMemo(
     () => ({
       labels: pieQuantity.labels,
@@ -38,7 +40,7 @@ const ProductDistribution = ({ pieQuantity, height = DEFAULT_HEIGHT }) => {
         legend: {
           position: "right",
           labels: {
-            color: COLORS.textPrimary,
+            color: colors.text,
             font: { family: '"Inter", "Roboto", sans-serif', size: 11 },
             boxWidth: 12,
             padding: 10,
@@ -53,19 +55,13 @@ const ProductDistribution = ({ pieQuantity, height = DEFAULT_HEIGHT }) => {
                   strokeStyle: PALETTE[i % PALETTE.length],
                   lineWidth: 1.5,
                   index: i,
-                  fontColor: COLORS.textPrimary,
+                  fontColor: colors.text,
                 };
               }),
           },
         },
         tooltip: {
-          backgroundColor: "#0F172A",
-          borderColor: "#334155",
-          borderWidth: 1,
-          titleColor: COLORS.textPrimary,
-          bodyColor: COLORS.text,
-          padding: 10,
-          cornerRadius: 8,
+          ...bOpts.plugins.tooltip,
           callbacks: {
             label: ({ raw, label }) => {
               const pct = total > 0 ? ((raw / total) * 100).toFixed(1) : "0";
@@ -75,7 +71,7 @@ const ProductDistribution = ({ pieQuantity, height = DEFAULT_HEIGHT }) => {
         },
       },
     }),
-    [total],
+    [total, bOpts, colors],
   );
 
   return (

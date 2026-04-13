@@ -1,13 +1,15 @@
 import React, { useMemo } from "react";
 import { Bar } from "react-chartjs-2";
 import { Box, Typography } from "@mui/material";
-import { horizontalBaseOptions, COLORS, PALETTE, CLP } from "./chartConfig";
+import { useChartConfig, PALETTE, CLP } from "./chartConfig";
 
 const TopProductsByRevenue = ({
   top10Revenue,
   height = 320,
   title = "Top 10 Productos por Ingresos (sin IVA)",
 }) => {
+  const { colors, horizontalBaseOptions: hOpts } = useChartConfig();
+
   const sorted = useMemo(
     () =>
       [...top10Revenue].sort((a, b) => a.ingreso_sin_iva - b.ingreso_sin_iva),
@@ -38,37 +40,37 @@ const TopProductsByRevenue = ({
 
   const options = useMemo(
     () => ({
-      ...horizontalBaseOptions,
+      ...hOpts,
       plugins: {
-        ...horizontalBaseOptions.plugins,
+        ...hOpts.plugins,
         legend: { display: false },
         tooltip: {
-          ...horizontalBaseOptions.plugins.tooltip,
+          ...hOpts.plugins.tooltip,
           callbacks: {
             label: ({ raw }) => ` ${CLP(raw)}`,
           },
         },
       },
       scales: {
-        ...horizontalBaseOptions.scales,
+        ...hOpts.scales,
         x: {
-          ...horizontalBaseOptions.scales.x,
+          ...hOpts.scales.x,
           beginAtZero: true,
           title: {
             display: true,
             text: "Ingreso sin IVA (CLP)",
-            color: COLORS.text,
+            color: colors.text,
             font: { size: 11 },
           },
           ticks: {
-            ...horizontalBaseOptions.scales.x.ticks,
+            ...hOpts.scales.x.ticks,
             callback: (v) => `$${(v / 1_000_000).toFixed(1)}M`,
           },
         },
         y: {
-          ...horizontalBaseOptions.scales.y,
+          ...hOpts.scales.y,
           ticks: {
-            ...horizontalBaseOptions.scales.y.ticks,
+            ...hOpts.scales.y.ticks,
             font: { size: 11 },
             callback: (_, i) => {
               const label = sorted[i]?.Producto ?? "";
@@ -78,7 +80,7 @@ const TopProductsByRevenue = ({
         },
       },
     }),
-    [sorted],
+    [sorted, hOpts, colors],
   );
 
   return (

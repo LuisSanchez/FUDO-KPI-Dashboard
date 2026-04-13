@@ -11,7 +11,9 @@
       "Bash(node:*)",
       "Bash(find /Users/luissanchez/Documents/repos/omp -type f \\\\\\(-name *.xlsx -o -name *.xls -o -name *.csv -o -name *.json \\\\\\))",
       "Bash(python -c \"from simulator.data_processing import simulate_price_cost; print\\(''OK''\\)\")",
-      "Bash(timeout 15 npm start)"
+      "Bash(timeout 15 npm start)",
+      "Bash(cat)",
+      "Read(//tmp/**)"
     ]
   }
 }

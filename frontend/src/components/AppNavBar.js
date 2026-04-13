@@ -23,6 +23,8 @@ import DownloadIcon from "@mui/icons-material/Download";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import TravelExploreIcon from "@mui/icons-material/TravelExplore";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import Brightness4Icon from "@mui/icons-material/Brightness4";
+import Brightness7Icon from "@mui/icons-material/Brightness7";
 
 const AppNavBar = ({
   bothUploaded,
@@ -37,6 +39,8 @@ const AppNavBar = ({
   onOpenHelp,
   onStartTour,
   onReset,
+  colorMode,
+  onToggleMode,
 }) => {
   const [menuAnchor, setMenuAnchor] = useState(null);
   const theme = useTheme();
@@ -48,7 +52,11 @@ const AppNavBar = ({
     <AppBar
       position="static"
       elevation={0}
-      sx={{ bgcolor: "#0F172A", borderBottom: "1px solid #1E293B" }}
+      sx={{
+        bgcolor: "background.default",
+        borderBottom: "1px solid",
+        borderColor: "divider",
+      }}
     >
       <Toolbar
         sx={{
@@ -207,7 +215,7 @@ const AppNavBar = ({
               open={!!menuAnchor}
               onClose={closeMenu}
               PaperProps={{
-                sx: { bgcolor: "#1E293B", border: "1px solid #334155" },
+                sx: { border: "1px solid", borderColor: "divider" },
               }}
             >
               <MenuItem
@@ -246,6 +254,21 @@ const AppNavBar = ({
             </Menu>
           </Box>
         )}
+
+        {/* Light / dark toggle */}
+        <Tooltip title={colorMode === "dark" ? "Modo claro" : "Modo oscuro"}>
+          <IconButton
+            onClick={onToggleMode}
+            size="small"
+            sx={{ color: "text.secondary" }}
+          >
+            {colorMode === "dark" ? (
+              <Brightness7Icon fontSize="small" />
+            ) : (
+              <Brightness4Icon fontSize="small" />
+            )}
+          </IconButton>
+        </Tooltip>
 
         {/* Icon actions — always visible */}
         <Tooltip title="Cómo funciona">

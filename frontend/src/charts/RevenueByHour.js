@@ -1,9 +1,11 @@
 import React, { useMemo } from "react";
 import { Bar } from "react-chartjs-2";
 import { Box, Typography } from "@mui/material";
-import { baseOptions, COLORS, CLP } from "./chartConfig";
+import { useChartConfig, COLORS, CLP } from "./chartConfig";
 
 const RevenueByHour = ({ hourly, height = 260 }) => {
+  const { colors, baseOptions: bOpts } = useChartConfig();
+
   const data = useMemo(
     () => ({
       labels: hourly.labels.map((h) => `${String(h).padStart(2, "0")}:00`),
@@ -24,12 +26,12 @@ const RevenueByHour = ({ hourly, height = 260 }) => {
 
   const options = useMemo(
     () => ({
-      ...baseOptions,
+      ...bOpts,
       plugins: {
-        ...baseOptions.plugins,
+        ...bOpts.plugins,
         legend: { display: false },
         tooltip: {
-          ...baseOptions.plugins.tooltip,
+          ...bOpts.plugins.tooltip,
           callbacks: {
             title: ([item]) => `Hora: ${item.label}`,
             label: ({ raw }) => ` ${CLP(raw)}`,
@@ -37,34 +39,34 @@ const RevenueByHour = ({ hourly, height = 260 }) => {
         },
       },
       scales: {
-        ...baseOptions.scales,
+        ...bOpts.scales,
         y: {
-          ...baseOptions.scales.y,
+          ...bOpts.scales.y,
           beginAtZero: true,
           title: {
             display: true,
             text: "Ingreso sin IVA (CLP)",
-            color: COLORS.text,
+            color: colors.text,
             font: { size: 11 },
           },
           ticks: {
-            ...baseOptions.scales.y.ticks,
+            ...bOpts.scales.y.ticks,
             callback: (v) => `$${(v / 1000).toFixed(0)}K`,
           },
         },
         x: {
-          ...baseOptions.scales.x,
+          ...bOpts.scales.x,
           title: {
             display: true,
             text: "Hora del día",
-            color: COLORS.text,
+            color: colors.text,
             font: { size: 11 },
           },
           min: 10,
         },
       },
     }),
-    [],
+    [bOpts, colors],
   );
 
   return (

@@ -33,7 +33,8 @@ const sign = (v) => (v > 0 ? "+" : "");
 // ── CompareRow ────────────────────────────────────────────────────────────────
 const CompareRow = ({ label, current, projected, formatter, highlight }) => {
   const delta = projected - current;
-  const deltaColor = delta > 0 ? "#22C55E" : delta < 0 ? "#EF4444" : "#64748B";
+  const deltaColor =
+    delta > 0 ? "#22C55E" : delta < 0 ? "#EF4444" : "text.disabled";
 
   return (
     <Box
@@ -44,7 +45,7 @@ const CompareRow = ({ label, current, projected, formatter, highlight }) => {
         py: 0.75,
         px: 1,
         borderRadius: 1,
-        bgcolor: highlight ? "#0F172A" : "transparent",
+        bgcolor: highlight ? "background.default" : "transparent",
         alignItems: "center",
       }}
     >
@@ -114,7 +115,7 @@ const SliderInput = ({
         }}
         sx={{
           width: 120,
-          "& .MuiOutlinedInput-root": { bgcolor: "#0F172A" },
+          "& .MuiOutlinedInput-root": { bgcolor: "background.default" },
           "& input": { textAlign: "right", fontSize: "0.8rem" },
         }}
       />
@@ -129,7 +130,10 @@ const SliderInput = ({
       size="small"
       sx={{
         color: "primary.main",
-        "& .MuiSlider-markLabel": { fontSize: "0.65rem", color: "#64748B" },
+        "& .MuiSlider-markLabel": {
+          fontSize: "0.65rem",
+          color: "text.disabled",
+        },
       }}
     />
   </Box>
@@ -185,7 +189,10 @@ const PriceCostSimulator = ({ salesLoaded, expensesLoaded, selectedMonth }) => {
 
   if (!expensesLoaded) {
     return (
-      <Paper elevation={0} sx={{ p: 3, border: "1px solid #1E293B", mt: 3 }}>
+      <Paper
+        elevation={0}
+        sx={{ p: 3, border: "1px solid", borderColor: "divider", mt: 3 }}
+      >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
           <PriceChangeIcon sx={{ color: "primary.main" }} />
           <Typography variant="subtitle2">
@@ -220,7 +227,10 @@ const PriceCostSimulator = ({ salesLoaded, expensesLoaded, selectedMonth }) => {
   const hasChanges = priceIncrease !== 0 || costIncrease !== 0;
 
   return (
-    <Paper elevation={0} sx={{ p: 3, border: "1px solid #1E293B", mt: 3 }}>
+    <Paper
+      elevation={0}
+      sx={{ p: 3, border: "1px solid", borderColor: "divider", mt: 3 }}
+    >
       {/* Header */}
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
         <PriceChangeIcon sx={{ color: "primary.main" }} />
@@ -243,7 +253,7 @@ const PriceCostSimulator = ({ salesLoaded, expensesLoaded, selectedMonth }) => {
           sx={{ display: "block", mb: 2.5 }}
         >
           Período de cálculo:{" "}
-          <strong style={{ color: "#94A3B8" }}>
+          <strong>
             {data.date_from} — {data.date_to}
           </strong>
           {" · "}
@@ -428,7 +438,7 @@ const PriceCostSimulator = ({ salesLoaded, expensesLoaded, selectedMonth }) => {
                 key={h}
                 variant="caption"
                 sx={{
-                  color: "#475569",
+                  color: "text.secondary",
                   fontWeight: 600,
                   textAlign: h !== "Métrica" ? "right" : "left",
                 }}
@@ -488,7 +498,12 @@ const PriceCostSimulator = ({ salesLoaded, expensesLoaded, selectedMonth }) => {
           {/* Disclaimer */}
           <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
             <InfoOutlinedIcon
-              sx={{ fontSize: 14, color: "#475569", mt: 0.3, flexShrink: 0 }}
+              sx={{
+                fontSize: 14,
+                color: "text.secondary",
+                mt: 0.3,
+                flexShrink: 0,
+              }}
             />
             <Typography variant="caption" color="text.secondary">
               El aumento de precio aplica sobre todas las unidades del período

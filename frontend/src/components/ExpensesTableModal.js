@@ -34,8 +34,8 @@ const ExpensesTableModal = ({ open, onClose, data, month }) => {
       fullWidth
       PaperProps={{
         sx: {
-          bgcolor: "#1E293B",
-          border: "1px solid #334155",
+          border: "1px solid",
+          borderColor: "divider",
           maxHeight: "90vh",
         },
       }}
@@ -103,11 +103,7 @@ const ExpensesTableModal = ({ open, onClose, data, month }) => {
             </TableHead>
             <TableBody>
               {filtered.map((row, i) => (
-                <TableRow
-                  key={i}
-                  hover
-                  sx={{ "&:hover": { bgcolor: "#ffffff08" } }}
-                >
+                <TableRow key={i} hover sx={{}}>
                   <TableCell
                     sx={{ whiteSpace: "nowrap", color: "text.secondary" }}
                   >
@@ -157,7 +153,11 @@ const ExpensesTableModal = ({ open, onClose, data, month }) => {
                 </TableRow>
               ))}
               <TableRow
-                sx={{ bgcolor: "#0F172A", position: "sticky", bottom: 0 }}
+                sx={{
+                  bgcolor: "background.default",
+                  position: "sticky",
+                  bottom: 0,
+                }}
               >
                 <TableCell colSpan={5} sx={{ fontWeight: 700 }}>
                   TOTAL

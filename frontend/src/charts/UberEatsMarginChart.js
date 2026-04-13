@@ -1,13 +1,15 @@
 import React, { useMemo } from "react";
 import { Bar } from "react-chartjs-2";
 import { Box, Typography } from "@mui/material";
-import { horizontalBaseOptions, COLORS } from "./chartConfig";
+import { useChartConfig } from "./chartConfig";
 
 /**
  * Horizontal bar chart: one bar per product sold on Uber Eats,
  * coloured green (positive margin) or red (negative / losing money).
  */
 const UberEatsMarginChart = ({ products = [], height = 360 }) => {
+  const { colors, horizontalBaseOptions: hOpts } = useChartConfig();
+
   const sorted = useMemo(
     () => [...products].sort((a, b) => a.margen_pct - b.margen_pct),
     [products],
@@ -36,12 +38,12 @@ const UberEatsMarginChart = ({ products = [], height = 360 }) => {
 
   const options = useMemo(
     () => ({
-      ...horizontalBaseOptions,
+      ...hOpts,
       plugins: {
-        ...horizontalBaseOptions.plugins,
+        ...hOpts.plugins,
         legend: { display: false },
         tooltip: {
-          ...horizontalBaseOptions.plugins.tooltip,
+          ...hOpts.plugins.tooltip,
           callbacks: {
             label: ({ dataIndex, raw }) => {
               const p = sorted[dataIndex];
@@ -57,24 +59,24 @@ const UberEatsMarginChart = ({ products = [], height = 360 }) => {
         },
       },
       scales: {
-        ...horizontalBaseOptions.scales,
+        ...hOpts.scales,
         x: {
-          ...horizontalBaseOptions.scales.x,
+          ...hOpts.scales.x,
           title: {
             display: true,
             text: "Margen %",
-            color: COLORS.text,
+            color: colors.text,
             font: { size: 11 },
           },
           ticks: {
-            ...horizontalBaseOptions.scales.x.ticks,
+            ...hOpts.scales.x.ticks,
             callback: (v) => `${v}%`,
           },
         },
         y: {
-          ...horizontalBaseOptions.scales.y,
+          ...hOpts.scales.y,
           ticks: {
-            ...horizontalBaseOptions.scales.y.ticks,
+            ...hOpts.scales.y.ticks,
             font: { size: 10 },
             callback: (_, i) => {
               const label = sorted[i]?.Producto ?? "";
@@ -84,7 +86,7 @@ const UberEatsMarginChart = ({ products = [], height = 360 }) => {
         },
       },
     }),
-    [sorted],
+    [sorted, hOpts, colors],
   );
 
   if (!products.length) return null;

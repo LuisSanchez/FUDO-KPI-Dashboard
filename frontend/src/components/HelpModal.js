@@ -42,8 +42,8 @@ const SECTIONS = [
         "CMV% = (Costo ingredientes sin IVA) / (Ingreso sin IVA) × 100. Mide qué fracción de cada peso de venta se destina a ingredientes y modificadores. Rango saludable para restaurantes: 25–35%.",
       ],
       [
-        "Comisión Uber Eats (30%)",
-        'Los pedidos con origen "uber_eats" tienen un 30% del ingreso descontado como comisión. Esta comisión se suma al costo total del ítem y reduce el margen bruto.',
+        "Comisión Uber Eats (25%)",
+        'Los pedidos con origen "uber_eats" tienen un 25% del ingreso descontado como comisión. El IVA de la comisión es crédito fiscal recuperable.',
       ],
       [
         "Margen bruto sin IVA",
@@ -121,7 +121,9 @@ const HelpModal = ({ open, onClose }) => (
     onClose={onClose}
     maxWidth="md"
     fullWidth
-    PaperProps={{ sx: { bgcolor: "#1E293B", border: "1px solid #334155" } }}
+    PaperProps={{
+      sx: { border: "1px solid", borderColor: "divider" },
+    }}
   >
     <DialogTitle
       sx={{
@@ -139,7 +141,7 @@ const HelpModal = ({ open, onClose }) => (
       </IconButton>
     </DialogTitle>
 
-    <DialogContent dividers sx={{ borderColor: "#334155" }}>
+    <DialogContent dividers>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
         {SECTIONS.map(({ title, body, list, formulas }) => (
           <Box key={title}>
@@ -158,8 +160,12 @@ const HelpModal = ({ open, onClose }) => (
                 {list.map(([label, desc]) => (
                   <Box component="li" key={label} sx={{ mb: 1 }}>
                     <Typography variant="body2">
-                      <strong style={{ color: "#F1F5F9" }}>{label}:</strong>{" "}
-                      <span style={{ color: "#94A3B8" }}>{desc}</span>
+                      <Box component="strong" sx={{ color: "text.primary" }}>
+                        {label}:
+                      </Box>{" "}
+                      <Box component="span" sx={{ color: "text.secondary" }}>
+                        {desc}
+                      </Box>
                     </Typography>
                   </Box>
                 ))}
@@ -173,7 +179,8 @@ const HelpModal = ({ open, onClose }) => (
                     <Typography
                       variant="body2"
                       fontWeight={600}
-                      sx={{ color: "#F1F5F9", mb: 0.3 }}
+                      color="text.primary"
+                      sx={{ mb: 0.3 }}
                     >
                       {label}
                     </Typography>
@@ -197,7 +204,7 @@ const HelpModal = ({ open, onClose }) => (
         >
           <Typography
             variant="body2"
-            sx={{ color: "#FBBF24", fontWeight: 600, mb: 0.5 }}
+            sx={{ color: "warning.main", fontWeight: 600, mb: 0.5 }}
           >
             ⚠️ Los datos son efímeros
           </Typography>

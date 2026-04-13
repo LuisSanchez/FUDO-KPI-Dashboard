@@ -1,37 +1,16 @@
 import React, { useMemo } from "react";
 import { Doughnut } from "react-chartjs-2";
 import { Box, Typography } from "@mui/material";
-import { baseOptions, CLP } from "./chartConfig";
+import { useChartConfig, CLP } from "./chartConfig";
 
 const CHANNEL_COLORS = {
   "Uber Eats": { bg: "#3B82F6", fade: "#3B82F640" },
   Local: { bg: "#22C55E", fade: "#22C55E40" },
 };
 
-const doughnutOpts = (formatter) => ({
-  ...baseOptions,
-  cutout: "62%",
-  plugins: {
-    ...baseOptions.plugins,
-    legend: {
-      ...baseOptions.plugins.legend,
-      position: "bottom",
-    },
-    tooltip: {
-      ...baseOptions.plugins.tooltip,
-      callbacks: {
-        label: ({ label, raw, dataset }) => {
-          const total = dataset.data.reduce((a, b) => a + b, 0);
-          const pct = total > 0 ? ((raw / total) * 100).toFixed(1) : 0;
-          return ` ${label}: ${formatter(raw)} (${pct}%)`;
-        },
-      },
-    },
-  },
-  scales: {},
-});
-
 const HalfChart = ({ title, labels, values, formatter }) => {
+  const { baseOptions: bOpts } = useChartConfig();
+
   const data = useMemo(
     () => ({
       labels,
@@ -52,6 +31,29 @@ const HalfChart = ({ title, labels, values, formatter }) => {
     [labels, values],
   );
 
+  const options = useMemo(
+    () => ({
+      ...bOpts,
+      cutout: "62%",
+      plugins: {
+        ...bOpts.plugins,
+        legend: { ...bOpts.plugins.legend, position: "bottom" },
+        tooltip: {
+          ...bOpts.plugins.tooltip,
+          callbacks: {
+            label: ({ label, raw, dataset }) => {
+              const total = dataset.data.reduce((a, b) => a + b, 0);
+              const pct = total > 0 ? ((raw / total) * 100).toFixed(1) : 0;
+              return ` ${label}: ${formatter(raw)} (${pct}%)`;
+            },
+          },
+        },
+      },
+      scales: {},
+    }),
+    [bOpts, formatter],
+  );
+
   return (
     <Box sx={{ flex: 1, minWidth: 0 }}>
       <Typography
@@ -62,7 +64,7 @@ const HalfChart = ({ title, labels, values, formatter }) => {
         {title}
       </Typography>
       <Box sx={{ height: 200 }}>
-        <Doughnut data={data} options={doughnutOpts(formatter)} />
+        <Doughnut data={data} options={options} />
       </Box>
     </Box>
   );

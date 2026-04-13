@@ -1,44 +1,19 @@
 import React, { useMemo } from "react";
 import { Bar } from "react-chartjs-2";
 import { Box, Typography } from "@mui/material";
-import { baseOptions, COLORS, CLP } from "./chartConfig";
+import { useChartConfig, CLP } from "./chartConfig";
 
 const CHANNEL_STYLE = {
   "Uber Eats": { bg: "#3B82F680", border: "#3B82F6" },
   Local: { bg: "#22C55E80", border: "#22C55E" },
 };
 
-const buildOptions = (ylabel, formatter) => ({
-  ...baseOptions,
-  plugins: {
-    ...baseOptions.plugins,
-    legend: { ...baseOptions.plugins.legend, position: "top" },
-    tooltip: {
-      ...baseOptions.plugins.tooltip,
-      callbacks: {
-        label: ({ dataset, raw }) => ` ${dataset.label}: ${formatter(raw)}`,
-      },
-    },
-  },
-  scales: {
-    x: { ...baseOptions.scales.x, grid: { color: "transparent" } },
-    y: {
-      ...baseOptions.scales.y,
-      title: {
-        display: true,
-        text: ylabel,
-        color: COLORS.text,
-        font: { size: 11 },
-      },
-    },
-  },
-});
-
 const ChannelByCategoryChart = ({
   channelByCategory,
   showRevenue = false,
   height = 260,
 }) => {
+  const { colors, baseOptions: bOpts } = useChartConfig();
   const CATS = ["Especialidades", "Extras"];
   const CHANNELS = ["Uber Eats", "Local"];
 
@@ -63,6 +38,35 @@ const ChannelByCategoryChart = ({
     };
   }, [channelByCategory, metric]);
 
+  const options = useMemo(
+    () => ({
+      ...bOpts,
+      plugins: {
+        ...bOpts.plugins,
+        legend: { ...bOpts.plugins.legend, position: "top" },
+        tooltip: {
+          ...bOpts.plugins.tooltip,
+          callbacks: {
+            label: ({ dataset, raw }) => ` ${dataset.label}: ${formatter(raw)}`,
+          },
+        },
+      },
+      scales: {
+        x: { ...bOpts.scales.x, grid: { color: "transparent" } },
+        y: {
+          ...bOpts.scales.y,
+          title: {
+            display: true,
+            text: ylabel,
+            color: colors.text,
+            font: { size: 11 },
+          },
+        },
+      },
+    }),
+    [bOpts, colors, showRevenue],
+  );
+
   if (!data) return null;
 
   const title = showRevenue
@@ -75,7 +79,7 @@ const ChannelByCategoryChart = ({
         {title}
       </Typography>
       <Box sx={{ height }}>
-        <Bar data={data} options={buildOptions(ylabel, formatter)} />
+        <Bar data={data} options={options} />
       </Box>
     </Box>
   );

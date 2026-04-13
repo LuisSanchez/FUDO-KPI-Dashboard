@@ -17,6 +17,8 @@ import {
   Legend,
   Filler,
 } from "chart.js";
+import { useContext, useMemo } from "react";
+import { ColorModeContext } from "../ColorModeContext";
 
 ChartJS.register(
   CategoryScale,
@@ -33,7 +35,7 @@ ChartJS.register(
   Filler,
 );
 
-// Shared palette aligned with the MUI dark theme
+// Static accent colors (same in both modes)
 export const COLORS = {
   orange: "#F97316",
   orangeFade: "#F9731640",
@@ -46,6 +48,7 @@ export const COLORS = {
   red: "#EF4444",
   redFade: "#EF444440",
   slate: "#94A3B8",
+  // dark-mode defaults kept for any non-chart code that still imports these
   grid: "#1E293B",
   gridLine: "#334155",
   text: "#94A3B8",
@@ -67,50 +70,81 @@ export const PALETTE = [
   "#64748B",
 ];
 
-/** Base options shared by all chart types */
-export const baseOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: {
-      labels: {
-        color: COLORS.text,
-        font: { family: '"Inter", "Roboto", sans-serif', size: 12 },
-        boxWidth: 12,
-        padding: 16,
+// ── Adaptive color helpers ────────────────────────────────────────────────────
+
+export const getChartColors = (isDark) => ({
+  text: isDark ? "#94A3B8" : "#475569",
+  textPrimary: isDark ? "#F1F5F9" : "#0F172A",
+  gridLine: isDark ? "#334155" : "#E2E8F0",
+  tooltipBg: isDark ? "#0F172A" : "#FFFFFF",
+  tooltipBorder: isDark ? "#334155" : "#CBD5E1",
+});
+
+export const getBaseOptions = (isDark) => {
+  const c = getChartColors(isDark);
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        labels: {
+          color: c.text,
+          font: { family: '"Inter", "Roboto", sans-serif', size: 12 },
+          boxWidth: 12,
+          padding: 16,
+        },
+      },
+      tooltip: {
+        backgroundColor: c.tooltipBg,
+        borderColor: c.tooltipBorder,
+        borderWidth: 1,
+        titleColor: c.textPrimary,
+        bodyColor: c.text,
+        padding: 10,
+        cornerRadius: 8,
       },
     },
-    tooltip: {
-      backgroundColor: "#0F172A",
-      borderColor: "#334155",
-      borderWidth: 1,
-      titleColor: COLORS.textPrimary,
-      bodyColor: COLORS.text,
-      padding: 10,
-      cornerRadius: 8,
+    scales: {
+      x: {
+        ticks: { color: c.text, font: { size: 11 } },
+        grid: { color: c.gridLine },
+      },
+      y: {
+        ticks: { color: c.text, font: { size: 11 } },
+        grid: { color: c.gridLine },
+      },
     },
-  },
-  scales: {
-    x: {
-      ticks: { color: COLORS.text, font: { size: 11 } },
-      grid: { color: COLORS.gridLine },
-    },
-    y: {
-      ticks: { color: COLORS.text, font: { size: 11 } },
-      grid: { color: COLORS.gridLine },
-    },
-  },
+  };
 };
 
-/** Horizontal bar variant (no y-grid, truncated labels) */
-export const horizontalBaseOptions = {
-  ...baseOptions,
-  indexAxis: "y",
-  scales: {
-    x: { ...baseOptions.scales.x, grid: { color: COLORS.gridLine } },
-    y: { ...baseOptions.scales.y, grid: { color: "transparent" } },
-  },
+export const getHorizontalBaseOptions = (isDark) => {
+  const base = getBaseOptions(isDark);
+  return {
+    ...base,
+    indexAxis: "y",
+    scales: {
+      x: { ...base.scales.x, grid: { color: base.scales.x.grid.color } },
+      y: { ...base.scales.y, grid: { color: "transparent" } },
+    },
+  };
 };
+
+/** Hook for chart components — returns mode-aware colors and base options. */
+export const useChartConfig = () => {
+  const colorMode = useContext(ColorModeContext);
+  const isDark = colorMode === "dark";
+  const colors = useMemo(() => getChartColors(isDark), [isDark]);
+  const baseOptions = useMemo(() => getBaseOptions(isDark), [isDark]);
+  const horizontalBaseOptions = useMemo(
+    () => getHorizontalBaseOptions(isDark),
+    [isDark],
+  );
+  return { isDark, colors, baseOptions, horizontalBaseOptions };
+};
+
+// ── Backwards-compat static exports (dark-mode defaults) ─────────────────────
+export const baseOptions = getBaseOptions(true);
+export const horizontalBaseOptions = getHorizontalBaseOptions(true);
 
 /** Format Chilean pesos */
 export const CLP = (v) =>

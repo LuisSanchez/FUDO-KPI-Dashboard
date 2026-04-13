@@ -56,7 +56,7 @@ const ProductCard = ({ rank, item, accent }) => (
       gap: 1.5,
       p: 1.5,
       borderRadius: 2,
-      bgcolor: "#0F172A",
+      bgcolor: "background.default",
       border: `1px solid ${accent}30`,
       alignItems: "flex-start",
     }}
@@ -128,7 +128,7 @@ const ProductCard = ({ rank, item, accent }) => (
           <Typography
             key={i}
             variant="caption"
-            sx={{ color: "#64748B", fontSize: "0.65rem" }}
+            sx={{ color: "text.disabled", fontSize: "0.65rem" }}
           >
             {i > 0 ? "· " : ""}
             {r}
@@ -146,7 +146,7 @@ const ProductCard = ({ rank, item, accent }) => (
       </Typography>
       <Typography
         variant="caption"
-        sx={{ color: "#475569", display: "block", fontSize: "0.6rem" }}
+        sx={{ color: "text.disabled", display: "block", fontSize: "0.6rem" }}
       >
         score
       </Typography>
@@ -178,7 +178,7 @@ const HourBar = ({ hour, count, peak, highlight }) => {
           sx={{
             width: 18,
             height: 48,
-            bgcolor: "#1E293B",
+            bgcolor: "background.paper",
             borderRadius: 1,
             position: "relative",
             overflow: "hidden",
@@ -200,7 +200,7 @@ const HourBar = ({ hour, count, peak, highlight }) => {
           variant="caption"
           sx={{
             fontSize: "0.55rem",
-            color: highlight ? color : "#475569",
+            color: highlight ? color : "text.disabled",
             fontWeight: highlight ? 700 : 400,
           }}
         >
@@ -259,7 +259,12 @@ const PromotionAdvisor = ({ salesLoaded, selectedMonth }) => {
   return (
     <Paper
       elevation={0}
-      sx={{ mt: 4, border: "1px solid #334155", overflow: "hidden" }}
+      sx={{
+        mt: 4,
+        border: "1px solid",
+        borderColor: "divider",
+        overflow: "hidden",
+      }}
     >
       {/* Header */}
       <Box
@@ -269,8 +274,9 @@ const PromotionAdvisor = ({ salesLoaded, selectedMonth }) => {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          bgcolor: "#0F172A",
-          borderBottom: open ? "1px solid #1E293B" : "none",
+          bgcolor: "background.default",
+          borderBottom: open ? "1px solid" : "none",
+          borderColor: "divider",
           cursor: "pointer",
         }}
         onClick={() => setOpen((v) => !v)}
@@ -287,8 +293,9 @@ const PromotionAdvisor = ({ salesLoaded, selectedMonth }) => {
               sx={{
                 fontSize: "0.65rem",
                 height: 18,
-                bgcolor: "#1C1C1C",
+                bgcolor: "#06B6D420",
                 color: "#06B6D4",
+                border: "1px solid #06B6D430",
               }}
             />
           )}
@@ -312,8 +319,15 @@ const PromotionAdvisor = ({ salesLoaded, selectedMonth }) => {
               tooltip: {
                 sx: {
                   maxWidth: 360,
-                  bgcolor: "#1E293B",
-                  border: "1px solid #334155",
+                  bgcolor: "background.paper",
+                  color: "text.primary",
+                  border: "1px solid",
+                  borderColor: "divider",
+                },
+              },
+              arrow: {
+                sx: {
+                  color: "background.paper",
                 },
               },
             }}
@@ -321,7 +335,7 @@ const PromotionAdvisor = ({ salesLoaded, selectedMonth }) => {
             <IconButton
               size="small"
               onClick={(e) => e.stopPropagation()}
-              sx={{ color: "#64748B" }}
+              sx={{ color: "text.secondary" }}
             >
               <InfoOutlinedIcon fontSize="small" />
             </IconButton>
@@ -368,7 +382,7 @@ const PromotionAdvisor = ({ salesLoaded, selectedMonth }) => {
                 gap: 3,
                 mb: 3,
                 p: 2,
-                bgcolor: "#0F172A",
+                bgcolor: "background.default",
                 borderRadius: 2,
                 flexWrap: "wrap",
                 alignItems: "center",
