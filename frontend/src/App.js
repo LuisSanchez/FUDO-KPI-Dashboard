@@ -11,6 +11,7 @@ import KpiRow from "./components/KpiRow";
 import DropzoneCard from "./components/DropzoneCard";
 import EbitdaGauge from "./components/EbitdaGauge";
 import SimCard from "./components/SimCard";
+import DashboardKPIBar from "./components/DashboardKPIBar";
 import SalesTableModal from "./components/SalesTableModal";
 import ExpensesTableModal from "./components/ExpensesTableModal";
 import ProductPricesModal from "./components/ProductPricesModal";
@@ -106,34 +107,31 @@ export default function App() {
   }, [bothUploaded]); // eslint-disable-line
 
   // ── Upload handlers ────────────────────────────────────────────────────────
-  const onSalesDrop = useCallback(
-    async (files) => {
-      const file = files[0];
-      if (!file) return;
-      setLoading(true);
-      setError(null);
-      const fd = new FormData();
-      fd.append("file", file);
-      try {
-        const res = await axios.post("/api/upload-sales/", fd, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-        setSalesFile(file.name);
-        setProducts(res.data.products || []);
-        setMonths(res.data.months || []);
-        setSelectedMonth("all");
-        setSelectedProduct(null);
-        // Backend clears expenses on sales re-upload — mirror that in UI
-        setExpensesFile(null);
-        setResults(null);
-      } catch (err) {
-        setError(err.response?.data?.error || "Error al cargar ventas");
-      } finally {
-        setLoading(false);
-      }
-    },
-    [],
-  );
+  const onSalesDrop = useCallback(async (files) => {
+    const file = files[0];
+    if (!file) return;
+    setLoading(true);
+    setError(null);
+    const fd = new FormData();
+    fd.append("file", file);
+    try {
+      const res = await axios.post("/api/upload-sales/", fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setSalesFile(file.name);
+      setProducts(res.data.products || []);
+      setMonths(res.data.months || []);
+      setSelectedMonth("all");
+      setSelectedProduct(null);
+      // Backend clears expenses on sales re-upload — mirror that in UI
+      setExpensesFile(null);
+      setResults(null);
+    } catch (err) {
+      setError(err.response?.data?.error || "Error al cargar ventas");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const onExpensesDrop = useCallback(
     async (files) => {
@@ -269,7 +267,10 @@ export default function App() {
         onReset={handleReset}
       />
 
-      <Container maxWidth={false} sx={{ py: 4, px: { xs: 2, sm: 4, md: 6, lg: 10 } }}>
+      <Container
+        maxWidth={false}
+        sx={{ py: 4, px: { xs: 2, sm: 4, md: 6, lg: 10 } }}
+      >
         {error && (
           <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 3 }}>
             {error}
@@ -318,6 +319,9 @@ export default function App() {
         {loading && (
           <LinearProgress color="primary" sx={{ mb: 3, borderRadius: 1 }} />
         )}
+
+        {/* ── Dashboard KPI Strip ── */}
+        {results && <DashboardKPIBar results={results} />}
 
         {/* ── Month selector ── */}
         {bothUploaded && months.length > 1 && (

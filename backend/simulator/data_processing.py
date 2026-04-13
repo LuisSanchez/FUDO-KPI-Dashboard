@@ -314,6 +314,77 @@ def kpi_calculations(
                 "already_25pct": bool(already_25pct),
             }
 
+    # ── Dashboard summary KPIs ────────────────────────────────────────────────
+    _WEEKDAY_ES = [
+        "Lunes",
+        "Martes",
+        "Miércoles",
+        "Jueves",
+        "Viernes",
+        "Sábado",
+        "Domingo",
+    ]
+
+    # Average price per unit for Especialidades (pizza-like main products)
+    esp_df = df[df["Categoría"] == "Especialidades"]
+    esp_units = esp_df["Cantidad"].sum()
+    avg_precio_especialidades = (
+        float(esp_df["ingreso_sin_iva"].sum() / esp_units) if esp_units > 0 else 0.0
+    )
+
+    # Gross margin by channel (ingredients + commission vs revenue, all sin IVA)
+    is_uber = df["Creada por"].str.lower() == "uber_eats"
+    df_local = df[~is_uber]
+    df_uber = df[is_uber]
+
+    local_rev = df_local["ingreso_sin_iva"].sum()
+    local_margin_pct = (
+        float(df_local["margen_sin_iva"].sum() / local_rev * 100)
+        if local_rev > 0
+        else 0.0
+    )
+
+    uber_rev = df_uber["ingreso_sin_iva"].sum()
+    uber_margin_pct = (
+        float(df_uber["margen_sin_iva"].sum() / uber_rev * 100) if uber_rev > 0 else 0.0
+    )
+
+    # Best weekday by total units sold (accumulated across all dates in period)
+    wday_units = df.groupby(df["created_at"].dt.dayofweek)["Cantidad"].sum()
+    if not wday_units.empty:
+        best_wday_idx = int(wday_units.idxmax())
+        best_weekday = {
+            "label": _WEEKDAY_ES[best_wday_idx],
+            "count": int(wday_units.max()),
+        }
+    else:
+        best_weekday = None
+
+    # Best hour by total units sold
+    hour_units = df.groupby(df["created_at"].dt.hour)["Cantidad"].sum()
+    if not hour_units.empty:
+        best_hour_val = int(hour_units.idxmax())
+        best_hour = {
+            "label": f"{best_hour_val:02d}:00",
+            "count": int(hour_units.max()),
+        }
+    else:
+        best_hour = None
+
+    # Top Especialidad by units sold
+    if not esp_df.empty:
+        top_esp_series = esp_df.groupby("Producto")["Cantidad"].sum().nlargest(1)
+        top_especialidad = (
+            {
+                "producto": top_esp_series.index[0],
+                "cantidad": int(top_esp_series.iloc[0]),
+            }
+            if not top_esp_series.empty
+            else None
+        )
+    else:
+        top_especialidad = None
+
     return {
         "ingresos": {
             "total_ingreso": r(total_ingreso),
@@ -336,6 +407,14 @@ def kpi_calculations(
         "ebitda": {
             "ebitda": r(ebitda),
             "ebitda_percentage": float(round(ebitda_percentage, 2)),
+        },
+        "dashboard": {
+            "avg_precio_especialidades": round(avg_precio_especialidades, 0),
+            "local_margin_pct": round(local_margin_pct, 1),
+            "uber_margin_pct": round(uber_margin_pct, 1),
+            "best_weekday": best_weekday,
+            "best_hour": best_hour,
+            "top_especialidad": top_especialidad,
         },
         "simulation": simulation,
     }
@@ -399,13 +478,26 @@ def get_unique_products(df: pd.DataFrame) -> List[str]:
     return products
 
 
-def get_sales_table(df: pd.DataFrame) -> List[Dict]:
-    """Aggregate sales by product for table display."""
+def get_sales_table(df: pd.DataFrame, by_channel: bool = True) -> List[Dict]:
+    """Aggregate sales by product for table display.
+
+    Parameters
+    ----------
+    by_channel : bool
+        When True (default), splits each product row by channel (Uber Eats / Local).
+        When False, aggregates all channels together (used by the PDF report).
+    """
     if df.empty:
         return []
 
+    df = df.copy()
+    df["canal"] = df["Creada por"].apply(
+        lambda x: "Uber Eats" if str(x).lower() == "uber_eats" else "Local"
+    )
+
+    group_keys = ["Producto", "Categoría"] + (["canal"] if by_channel else [])
     grouped = (
-        df.groupby(["Producto", "Categoría"])
+        df.groupby(group_keys)
         .agg(
             cantidad=("Cantidad", "sum"),
             ingreso_sin_iva=("ingreso_sin_iva", "sum"),
@@ -965,10 +1057,15 @@ def get_sales_excel(df: pd.DataFrame, categoria: str) -> bytes:
     """
     import io
 
-    rows = [r for r in get_sales_table(df) if r.get("Categoría") == categoria]
+    rows = [
+        r
+        for r in get_sales_table(df, by_channel=True)
+        if r.get("Categoría") == categoria
+    ]
 
     col_map = {
         "Producto": "Producto",
+        "canal": "Canal",
         "cantidad": "Cantidad",
         "ingreso_sin_iva": "Ingreso s/IVA",
         "cmv": "CMV ($)",

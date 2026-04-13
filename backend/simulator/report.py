@@ -240,7 +240,7 @@ def _kpi_summary_table(kpis):
 
 
 def _sales_table(df_sales, categoria=None):
-    rows_data = get_sales_table(df_sales)
+    rows_data = get_sales_table(df_sales, by_channel=False)
     if not rows_data:
         return _P("Sin datos de ventas.", "bodysub")
 

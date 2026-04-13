@@ -318,7 +318,9 @@ const ChartsSection = ({ salesLoaded, selectedMonth, onChartData }) => {
                   flex: "0 0 calc(50% - 12px)",
                   minWidth: 0,
                   "@media (max-width: 600px)": { flex: "0 0 100%" },
-                  "@media (min-width: 1536px)": { flex: "0 0 calc(33.333% - 16px)" },
+                  "@media (min-width: 1536px)": {
+                    flex: "0 0 calc(33.333% - 16px)",
+                  },
                 }}
               >
                 <ChartCard

@@ -40,10 +40,10 @@ dev:
 	uv pip install -r ./backend/requirements.txt
 	cd ./frontend && npm install
 
-compose-up:
+up:
 	docker compose up -d
 
-compose-down:
+down:
 	docker compose down
 
 build:
@@ -55,13 +55,13 @@ rebuild:
 	docker build --no-cache -t omp .
 	make up
 
-down:
+image-down:
 	docker stop omp
 
 remove:
 	docker rm omp
 
-up:
+image-up:
 	docker run -d \
 	-p 8000:8000 \
 	--env-file $(BACK_ENV) \
