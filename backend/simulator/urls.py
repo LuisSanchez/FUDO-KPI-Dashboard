@@ -18,4 +18,5 @@ urlpatterns = [
     path("report/excel/", views.download_excel, name="download_excel"),
     path("advisor/promotions/", views.promotion_advisor, name="promotion_advisor"),
     path("uber-eats/analysis/", views.uber_eats_analysis, name="uber_eats_analysis"),
+    path("sunday-analysis/", views.sunday_analysis, name="sunday_analysis"),
 ]

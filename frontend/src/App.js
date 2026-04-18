@@ -7,6 +7,7 @@ import ProjectionSimulator from "./components/ProjectionSimulator";
 import PriceCostSimulator from "./components/PriceCostSimulator";
 import PromotionAdvisor from "./components/PromotionAdvisor";
 import UberEatsSection from "./components/UberEatsSection";
+import SundayAnalysisSection from "./components/SundayAnalysisSection";
 import KpiRow from "./components/KpiRow";
 import DropzoneCard from "./components/DropzoneCard";
 import EbitdaGauge from "./components/EbitdaGauge";
@@ -739,6 +740,13 @@ export default function App() {
             salesLoaded={!!salesFile}
             selectedMonth={selectedMonth}
             chartData={chartData}
+          />
+
+          {/* ── Sunday Analysis ── */}
+          <SundayAnalysisSection
+            salesLoaded={!!salesFile}
+            expensesLoaded={!!expensesFile}
+            selectedMonth={selectedMonth}
           />
 
           {/* ── Charts ── */}
