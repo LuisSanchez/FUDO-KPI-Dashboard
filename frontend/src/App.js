@@ -738,6 +738,7 @@ export default function App() {
           {/* ── Uber Eats Analysis ── */}
           <UberEatsSection
             salesLoaded={!!salesFile}
+            expensesLoaded={!!expensesFile}
             selectedMonth={selectedMonth}
             chartData={chartData}
           />

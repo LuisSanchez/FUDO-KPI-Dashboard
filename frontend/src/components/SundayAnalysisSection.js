@@ -166,7 +166,7 @@ const SundayAnalysisSection = ({
 
   useEffect(() => {
     if (salesLoaded) fetchAnalysis();
-  }, [salesLoaded, fetchAnalysis]);
+  }, [salesLoaded, expensesLoaded, fetchAnalysis]);
 
   if (!salesLoaded) return null;
 

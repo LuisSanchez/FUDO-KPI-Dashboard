@@ -197,7 +197,12 @@ const BreakevenCard = ({ data }) => {
   );
 };
 
-const UberEatsSection = ({ salesLoaded, selectedMonth, chartData }) => {
+const UberEatsSection = ({
+  salesLoaded,
+  expensesLoaded,
+  selectedMonth,
+  chartData,
+}) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -223,7 +228,7 @@ const UberEatsSection = ({ salesLoaded, selectedMonth, chartData }) => {
 
   useEffect(() => {
     if (salesLoaded) fetchAnalysis();
-  }, [salesLoaded, fetchAnalysis]);
+  }, [salesLoaded, expensesLoaded, fetchAnalysis]);
 
   if (!salesLoaded) return null;
 

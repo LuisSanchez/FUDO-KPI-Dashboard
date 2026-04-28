@@ -1250,7 +1250,7 @@ def get_uber_eats_analysis(
 # ── Sunday viability analysis ──────────────────────────────────────────────────
 
 _SUNDAY_BUCKETS: dict[str, list[str]] = {
-    "Arriendo": ["arriendo"],
+    "Arriendo": ["arriendo", "alquiler"],
     "Electricidad": ["electricidad", " luz"],
     "Personal": ["personal", "remuneraci", "sueldo", "rrhh"],
     "GGCC": ["ggcc", "gastos comunes", "gastos comunal", "comunal"],
