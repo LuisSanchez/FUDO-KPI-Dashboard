@@ -51,6 +51,7 @@ const COLS = [
   { id: "comision_pct", label: "Comis.%", numeric: true },
   { id: "margen_pct", label: "Margen%", numeric: true },
   { id: "margen_sin_iva", label: "Margen $", numeric: true },
+  { id: "has_imputed_cost", label: "Costo imputado", numeric: false },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -417,6 +418,25 @@ const ProductRow = ({ row, onRowClick }) => (
       </Typography>
     </TableCell>
     <TableCell align="right">{CLP(row.margen_sin_iva)}</TableCell>
+    <TableCell align="center">
+      {row.has_imputed_cost ? (
+        <Tooltip
+          title={`${row.cost_imputed_rows || "Algunas"} filas tenían Costo base = 0 en FUDO y se imputó desde el mismo producto en el período.`}
+        >
+          <Chip
+            label="Sí"
+            size="small"
+            color="warning"
+            variant="outlined"
+            sx={{ fontSize: "0.65rem", height: 20 }}
+          />
+        </Tooltip>
+      ) : (
+        <Typography variant="caption" color="text.disabled">
+          —
+        </Typography>
+      )}
+    </TableCell>
   </TableRow>
 );
 

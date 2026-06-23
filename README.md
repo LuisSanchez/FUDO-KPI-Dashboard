@@ -14,6 +14,8 @@ A full-stack web application that analyzes pizza store profitability using FUDO 
 - **Data Tables** — Searchable, sortable tables for sales by product and category; expense detail with type filter; per-product pricing with Uber Eats price column, channel filter, and category filter
 - **Promotion Advisor** — Data-driven Uber Eats promotion recommendations: top 5 products per category ranked by composite score (margin, cost efficiency, volume), hourly activity heatmap, and average ticket comparison
 - **Exports** — "Descargar" dropdown: PDF financial report, Excel for Especialidades, Excel for Extras (all products, full margin breakdown)
+- **Saved Scenarios** — snapshot current session sales/expenses under a name and reload later for multi-month comparison (session-scoped)
+- **Cost imputation flags** — zero `Costo base` from FUDO is filled via promo lookup / period-max cost; UI shows which products were patched
 - **Responsive Navbar** — On small screens, table buttons collapse to icon-only; "Descargar" becomes a download icon
 
 ## Project Structure
@@ -73,7 +75,7 @@ omp/
 ## Tech Stack
 
 ### Backend
-- **Django 5.2** + **Django REST Framework**
+- **Django 6.0** + **Django REST Framework**
 - **Pandas** — data cleaning and aggregation
 - **OpenPyXL / xlrd** — Excel file parsing
 - **ReportLab** — PDF generation
@@ -134,6 +136,11 @@ Required columns: `Id`, `Fecha`, `Fecha de vencimiento`, `Proveedor`, `Categorí
 | GET | `/api/report/excel/` | Download Excel export (`?categoria=Especialidades\|Extras&month=YYYY-MM`) |
 | GET | `/api/advisor/promotions/` | Promotion recommendations (`?month=YYYY-MM`) |
 | GET | `/api/uber-eats/analysis/` | Uber Eats margin + break-even analysis (`?month=YYYY-MM`) |
+| GET | `/api/sunday-analysis/` | Sunday viability / daily fixed-cost break-even (`?month=YYYY-MM`) |
+| GET | `/api/scenarios/` | List saved session snapshots |
+| POST | `/api/scenarios/` | Save current session (`name`, optional `month`, `note`) |
+| POST | `/api/scenarios/<id>/` | Load snapshot into active session |
+| DELETE | `/api/scenarios/<id>/` | Delete a saved snapshot |
 | POST | `/api/reset/` | Clear session data |
 
 ## Key Business Logic
@@ -168,7 +175,7 @@ The simulator and the PDF report both use this ticket-based model. The `PriceCos
 
 **Price/cost simulator scope:** The `price_increase_clp` delta is applied only to Especialidades. The response includes `date_from`, `date_to`, `total_tickets`, `avg_ticket_current/projected`, and `contribution_pct_current/projected`.
 
-**Zero-cost imputation:** Products with cost = 0 are patched by the highest available per-unit cost of the same product in the same period. A targeted patch covers "Pizza Napoli" and "Pizza Veggie G" for March 2026.
+**Zero-cost imputation:** Products with `Costo base = 0` are patched in order: (1) Extra promo / Producto Genérico lookup from valid same-product costs, (2) optional `COST_UNIT_OVERRIDES` in `simulator/processing/constants.py`, (3) period-max unit cost for the same product (any month fallback). Each patched row sets `cost_imputed=True` and a reason; upload response and sales table expose the flag.
 
 **PDF report filename:** Derived from actual data period — single month → `reporte-YYYY-MM.pdf`; multiple months → `reporte-YYYY-MM_a_YYYY-MM.pdf`. Applied in both the backend `Content-Disposition` header and the frontend download hook.
 
@@ -208,3 +215,11 @@ score = margen_pct × 0.5 + (100 − cmv_pct) × 0.3 + volume_score × 0.2
 - Session data is stored in SQLite keyed by Django session cookie and expires after 24 h
 - CORS is open for all origins in dev (`CORS_ALLOW_ALL_ORIGINS = True`)
 - All numpy types are cast to Python natives before JSON serialization
+
+
+## Production / security notes
+
+- Set `DEBUG=False`, a strong `SECRET_KEY`, and explicit `ALLOWED_HOSTS` in the environment (or `backend/pizza_simulator/.env`). Startup fails closed if the insecure default key is used with `DEBUG=False`.
+- `CORS_ALLOW_ALL_ORIGINS` is only honoured while `DEBUG=True`. In production, set `CORS_ALLOWED_ORIGINS` / `CSRF_TRUSTED_ORIGINS` to your frontend origins.
+- Session and CSRF cookies use `Secure` when `DEBUG=False` (override with `SESSION_COOKIE_SECURE` / `CSRF_COOKIE_SECURE`).
+- Business logic lives under `backend/simulator/processing/`; `data_processing.py` remains a compatibility facade for existing imports.

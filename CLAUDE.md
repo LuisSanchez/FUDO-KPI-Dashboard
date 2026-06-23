@@ -58,7 +58,8 @@ The frontend proxies `/api` requests to `http://backend:8000` (Docker service na
 
 - **`simulator/views.py`** — API endpoints. Uses `UserSessionData` (SQLite) keyed by Django session cookie to store per-user uploaded file data. DataFrames are pickled into `BinaryField` columns. Sessions expire after 24 h (`SESSION_COOKIE_AGE`).
 - **`simulator/models.py`** — `UserSessionData` model: `session_key`, `sales_df_pickle`, `expenses_df_pickle`, `products` (JSONField), `sales_months` (JSONField), `updated_at`.
-- **`simulator/data_processing.py`** — All business logic: data cleaning, KPI/EBITDA calculation, file validation, chart data aggregation.
+- **`simulator/processing/`** — Modular business logic (cleaning, KPIs, charts, Uber, advisor, Sunday, exports). `data_processing.py` re-exports the public API.
+- **`simulator/models.py`** — `UserSessionData` plus optional `SavedScenario` snapshots.
 - **`pizza_simulator/settings.py`** — CORS allows all origins; SQLite for dev.
 
 API endpoints (all prefixed `/api/`):
@@ -76,6 +77,11 @@ GET  /api/report/pdf/           Generate and download PDF financial report (?mon
 GET  /api/report/excel/         Download Excel export (?categoria=Especialidades|Extras&month=YYYY-MM)
 GET  /api/advisor/promotions/   Promotion recommendations (?month=YYYY-MM)
 GET  /api/uber-eats/analysis/   Uber Eats margin + break-even analysis (?month=YYYY-MM)
+GET  /api/sunday-analysis/     Sunday viability analysis (?month=YYYY-MM)
+GET  /api/scenarios/           List saved session snapshots
+POST /api/scenarios/           Save current session snapshot
+POST /api/scenarios/<id>/      Load snapshot into session
+DELETE /api/scenarios/<id>/    Delete snapshot
 POST /api/reset/                Clear session data
 ```
 

@@ -19,4 +19,6 @@ urlpatterns = [
     path("advisor/promotions/", views.promotion_advisor, name="promotion_advisor"),
     path("uber-eats/analysis/", views.uber_eats_analysis, name="uber_eats_analysis"),
     path("sunday-analysis/", views.sunday_analysis, name="sunday_analysis"),
+    path("scenarios/", views.scenarios, name="scenarios"),
+    path("scenarios/<int:scenario_id>/", views.scenario_detail, name="scenario_detail"),
 ]

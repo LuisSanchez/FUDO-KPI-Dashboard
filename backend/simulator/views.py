@@ -7,7 +7,9 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 
-from .models import UserSessionData
+from django.conf import settings
+
+from .models import UserSessionData, SavedScenario
 from .data_processing import (
     sales_clean_up_data,
     kpi_calculations,
@@ -23,6 +25,7 @@ from .data_processing import (
     get_promotion_advisor,
     get_uber_eats_analysis,
     get_sunday_analysis,
+    get_imputation_summary,
 )
 
 
@@ -113,6 +116,7 @@ def upload_sales(request):
                 "products": products,
                 "months": months,
                 "total_rows": len(df_clean),
+                "cost_imputation": get_imputation_summary(df_clean),
             }
         )
 
@@ -559,3 +563,118 @@ def sunday_analysis(request):
             {"error": f"Error computing Sunday analysis: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+# ── Saved scenarios (optional multi-month snapshots) ───────────────────────────
+
+
+def _scenario_payload(scenario: SavedScenario) -> dict:
+    return {
+        "id": scenario.id,
+        "name": scenario.name,
+        "month": scenario.month or None,
+        "note": scenario.note,
+        "products": scenario.products,
+        "sales_months": scenario.sales_months,
+        "kpi_snapshot": scenario.kpi_snapshot or {},
+        "created_at": scenario.created_at.isoformat() if scenario.created_at else None,
+        "updated_at": scenario.updated_at.isoformat() if scenario.updated_at else None,
+        "has_sales": scenario.sales_df_pickle is not None,
+        "has_expenses": scenario.expenses_df_pickle is not None,
+    }
+
+
+@api_view(["GET", "POST"])
+def scenarios(request):
+    """List or create named session snapshots for comparison."""
+    store = _get_store(request)
+    session_key = store.session_key
+
+    if request.method == "GET":
+        qs = SavedScenario.objects.filter(session_key=session_key)
+        return Response({"scenarios": [_scenario_payload(s) for s in qs]})
+
+    # POST — snapshot current session data
+    if store.sales_df_pickle is None:
+        return Response(
+            {"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST
+        )
+
+    name = (request.data.get("name") or "").strip()
+    if not name:
+        return Response(
+            {"error": "name is required"}, status=status.HTTP_400_BAD_REQUEST
+        )
+    month = (request.data.get("month") or "").strip()
+    note = (request.data.get("note") or "").strip()[:255]
+
+    max_scenarios = getattr(settings, "MAX_SAVED_SCENARIOS_PER_SESSION", 12)
+    existing_count = SavedScenario.objects.filter(session_key=session_key).count()
+    if existing_count >= max_scenarios:
+        return Response(
+            {
+                "error": "scenario_limit",
+                "max": max_scenarios,
+                "message": f"Maximum of {max_scenarios} saved scenarios per session",
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    kpi_snapshot = {}
+    try:
+        df_sales = _load_df(store.sales_df_pickle).copy()
+        if month:
+            df_sales = df_sales[
+                df_sales["created_at"].dt.to_period("M").astype(str) == month
+            ]
+        if store.expenses_df_pickle is not None:
+            df_expenses = _load_df(store.expenses_df_pickle).copy()
+            kpi_snapshot = kpi_calculations(df_sales, df_expenses)
+        kpi_snapshot["cost_imputation"] = get_imputation_summary(df_sales)
+    except Exception:
+        kpi_snapshot = {}
+
+    scenario = SavedScenario.objects.create(
+        session_key=session_key,
+        name=name[:120],
+        month=month[:7],
+        note=note,
+        sales_df_pickle=store.sales_df_pickle,
+        expenses_df_pickle=store.expenses_df_pickle,
+        products=list(store.products or []),
+        sales_months=list(store.sales_months or []),
+        kpi_snapshot=kpi_snapshot,
+    )
+    return Response(_scenario_payload(scenario), status=status.HTTP_201_CREATED)
+
+
+@api_view(["POST", "DELETE"])
+def scenario_detail(request, scenario_id: int):
+    """Load a scenario into the active session (POST) or delete it (DELETE)."""
+    store = _get_store(request)
+    try:
+        scenario = SavedScenario.objects.get(
+            id=scenario_id, session_key=store.session_key
+        )
+    except SavedScenario.DoesNotExist:
+        return Response({"error": "Scenario not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == "DELETE":
+        scenario.delete()
+        return Response({"message": "Scenario deleted"})
+
+    # POST — restore into current session
+    store.sales_df_pickle = scenario.sales_df_pickle
+    store.expenses_df_pickle = scenario.expenses_df_pickle
+    store.products = scenario.products or []
+    store.sales_months = scenario.sales_months or []
+    store.save()
+
+    return Response(
+        {
+            "message": "Scenario loaded into session",
+            "scenario": _scenario_payload(scenario),
+            "products": store.products,
+            "months": store.sales_months,
+        }
+    )

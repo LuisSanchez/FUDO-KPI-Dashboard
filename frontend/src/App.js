@@ -97,6 +97,10 @@ export default function App() {
   const [toast, setToast] = useState({ open: false, message: "" });
   const [chartData, setChartData] = useState(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [costImputation, setCostImputation] = useState(null);
+  const [scenarios, setScenarios] = useState([]);
+  const [scenarioName, setScenarioName] = useState("");
+  const [scenariosLoading, setScenariosLoading] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setShowScrollTop(window.scrollY > 400);
@@ -160,9 +164,16 @@ export default function App() {
       setMonths(res.data.months || []);
       setSelectedMonth("all");
       setSelectedProduct(null);
+      setCostImputation(res.data.cost_imputation || null);
       // Backend clears expenses on sales re-upload — mirror that in UI
       setExpensesFile(null);
       setResults(null);
+      if (res.data.cost_imputation?.imputed_rows > 0) {
+        setToast({
+          open: true,
+          message: `Se imputó costo en ${res.data.cost_imputation.imputed_rows} filas (FUDO exportaba costo 0). Revisa la columna en Ventas.`,
+        });
+      }
     } catch (err) {
       setError(err.response?.data?.error || "Error al cargar ventas");
     } finally {
@@ -259,6 +270,75 @@ export default function App() {
     }
   };
 
+  // ── Saved scenarios ────────────────────────────────────────────────────────
+  const refreshScenarios = useCallback(async () => {
+    try {
+      const res = await axios.get("/api/scenarios/");
+      setScenarios(res.data.scenarios || []);
+    } catch (_) {
+      /* optional feature — ignore when offline */
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshScenarios();
+  }, [refreshScenarios, salesFile]);
+
+  const saveScenario = async () => {
+    const name =
+      scenarioName.trim() ||
+      (selectedMonth && selectedMonth !== "all"
+        ? `Escenario ${fmtMonth(selectedMonth)}`
+        : `Escenario ${new Date().toLocaleDateString("es-CL")}`);
+    setScenariosLoading(true);
+    try {
+      const body = { name };
+      if (selectedMonth && selectedMonth !== "all") body.month = selectedMonth;
+      await axios.post("/api/scenarios/", body);
+      setScenarioName("");
+      await refreshScenarios();
+      setToast({ open: true, message: `Escenario «${name}» guardado` });
+    } catch (err) {
+      setToast({
+        open: true,
+        message: err.response?.data?.message || err.response?.data?.error || "No se pudo guardar el escenario",
+      });
+    } finally {
+      setScenariosLoading(false);
+    }
+  };
+
+  const loadScenario = async (id) => {
+    setScenariosLoading(true);
+    try {
+      const res = await axios.post(`/api/scenarios/${id}/`);
+      setSalesFile(res.data.scenario?.name ? `escenario:${res.data.scenario.name}` : "escenario");
+      setProducts(res.data.products || []);
+      setMonths(res.data.months || []);
+      setSelectedMonth("all");
+      setSelectedProduct(null);
+      setExpensesFile(res.data.scenario?.has_expenses ? "cargado" : null);
+      setResults(null);
+      const imp = res.data.scenario?.kpi_snapshot?.cost_imputation;
+      setCostImputation(imp || null);
+      setToast({ open: true, message: "Escenario cargado en la sesión activa" });
+      if (res.data.scenario?.has_expenses) {
+        calculate("all", null);
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || "Error al cargar escenario");
+    } finally {
+      setScenariosLoading(false);
+    }
+  };
+
+  const deleteScenario = async (id) => {
+    try {
+      await axios.delete(`/api/scenarios/${id}/`);
+      await refreshScenarios();
+    } catch (_) {}
+  };
+
   // ── Reset ──────────────────────────────────────────────────────────────────
   const handleReset = async () => {
     try {
@@ -272,6 +352,7 @@ export default function App() {
     setSelectedProduct(null);
     setResults(null);
     setError(null);
+    setCostImputation(null);
     setToast({ open: false, message: "" });
   };
 
@@ -362,6 +443,67 @@ export default function App() {
 
           {loading && (
             <LinearProgress color="primary" sx={{ mb: 3, borderRadius: 1 }} />
+          )}
+
+          {/* ── Cost imputation notice ── */}
+          {costImputation?.imputed_rows > 0 && (
+            <Alert severity="info" sx={{ mb: 2 }} onClose={() => setCostImputation(null)}>
+              Se imputó el costo de ingredientes en{" "}
+              <strong>{costImputation.imputed_rows}</strong> filas (
+              {Math.round(costImputation.imputed_units || 0)} unidades) porque FUDO
+              exportaba <code>Costo base = 0</code>. Los productos afectados se marcan
+              en la tabla de Ventas (columna «Costo imputado»).
+            </Alert>
+          )}
+
+          {/* ── Saved scenarios ── */}
+          {salesFile && (
+            <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                Escenarios guardados
+              </Typography>
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1.5 }}>
+                Guarda una copia de ventas/gastos de esta sesión para comparar meses sin
+                re-subir archivos (máx. por sesión en el servidor).
+              </Typography>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, alignItems: "center", mb: 1.5 }}>
+                <TextField
+                  size="small"
+                  label="Nombre"
+                  value={scenarioName}
+                  onChange={(e) => setScenarioName(e.target.value)}
+                  placeholder="ej. Marzo 2026"
+                  sx={{ minWidth: 200 }}
+                />
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={saveScenario}
+                  disabled={scenariosLoading || !salesFile}
+                >
+                  Guardar escenario
+                </Button>
+              </Box>
+              {scenarios.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">
+                  Aún no hay escenarios en esta sesión.
+                </Typography>
+              ) : (
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                  {scenarios.map((s) => (
+                    <Chip
+                      key={s.id}
+                      label={`${s.name}${s.month ? ` (${fmtMonth(s.month)})` : ""}`}
+                      onClick={() => loadScenario(s.id)}
+                      onDelete={() => deleteScenario(s.id)}
+                      color="primary"
+                      variant="outlined"
+                      disabled={scenariosLoading}
+                    />
+                  ))}
+                </Box>
+              )}
+            </Paper>
           )}
 
           {/* ── Dashboard KPI Strip ── */}
