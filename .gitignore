@@ -70,4 +70,4 @@ Thumbs.db
 
 # Jupyter
 .ipynb_checkpoints/
-lab/
+lab/backend/.venv/

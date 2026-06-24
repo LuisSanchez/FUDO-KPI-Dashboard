@@ -67,3 +67,10 @@ image-up:
 	--env-file $(BACK_ENV) \
 	--name omp \
 	omp
+
+# Unit tests (local/CI). Does not run on Railway; safe to add without changing deploy.
+test:
+	cd backend && pip install -q -r requirements-dev.txt && pytest
+
+test-backend:
+	cd backend && pytest
