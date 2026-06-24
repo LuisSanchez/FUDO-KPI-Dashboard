@@ -25,6 +25,7 @@ import TravelExploreIcon from "@mui/icons-material/TravelExplore";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
+import GoogleSignIn from "./GoogleSignIn";
 
 const AppNavBar = ({
   bothUploaded,
@@ -41,6 +42,7 @@ const AppNavBar = ({
   onReset,
   colorMode,
   onToggleMode,
+  onAuthChange,
 }) => {
   const [menuAnchor, setMenuAnchor] = useState(null);
   const theme = useTheme();
@@ -269,6 +271,9 @@ const AppNavBar = ({
             )}
           </IconButton>
         </Tooltip>
+
+        {/* Optional Google auth — hidden unless backend GOOGLE_OAUTH_ENABLED=true */}
+        <GoogleSignIn onAuthChange={onAuthChange} />
 
         {/* Icon actions — always visible */}
         <Tooltip title="Cómo funciona">

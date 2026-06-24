@@ -71,12 +71,22 @@ WSGI_APPLICATION = "pizza_simulator.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+# Database: use Neon/Postgres when DATABASE_URL is set; otherwise SQLite (Railway-safe default).
+# Never destructive — existing session rows preserved when migrating to Postgres via migrate.
+_database_url = env.str("DATABASE_URL", default="")
+if _database_url:
+    # django-environ parses postgres:// and postgresql:// URLs
+    DATABASES = {"default": env.db("DATABASE_URL")}
+    # Neon requires SSL
+    DATABASES["default"].setdefault("OPTIONS", {})
+    DATABASES["default"]["OPTIONS"].setdefault("sslmode", "require")
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
     }
-}
 
 
 # Password validation
@@ -143,3 +153,11 @@ CORS_ALLOW_ALL_ORIGINS = True  # Only for development
 # Media files (uploaded files)
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+
+# ── Google OAuth (optional; off by default so Railway keeps working) ──────────
+GOOGLE_OAUTH_ENABLED = env.bool("GOOGLE_OAUTH_ENABLED", default=False)
+GOOGLE_CLIENT_ID = env.str("GOOGLE_CLIENT_ID", default="")
+GOOGLE_CLIENT_SECRET = env.str("GOOGLE_CLIENT_SECRET", default="")
+# When True and GOOGLE_OAUTH_ENABLED, unauthenticated API calls get 401 (except auth/* and health).
+REQUIRE_AUTH = env.bool("REQUIRE_AUTH", default=False)
+

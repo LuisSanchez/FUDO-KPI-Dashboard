@@ -10,4 +10,6 @@ matplotlib
 plotly
 nbformat
 arrow
-reportlab
+reportlabpsycopg2-binary>=2.9.9
+google-auth>=2.28.0
+requests>=2.31.0
