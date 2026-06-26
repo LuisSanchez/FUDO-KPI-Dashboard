@@ -67,3 +67,9 @@ image-up:
 	--env-file $(BACK_ENV) \
 	--name omp \
 	omp
+
+test:
+	cd backend && pip install -q -r requirements-dev.txt && pytest
+
+test-be:
+	cd backend && pytest
