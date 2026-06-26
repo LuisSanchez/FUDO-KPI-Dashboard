@@ -1,7 +1,12 @@
 from django.urls import path
 from . import views
+from . import auth_views
 
 urlpatterns = [
+    path("auth/config/", auth_views.auth_config, name="auth_config"),
+    path("auth/me/", auth_views.auth_me, name="auth_me"),
+    path("auth/logout/", auth_views.auth_logout, name="auth_logout"),
+    path("auth/google/", auth_views.auth_google, name="auth_google"),
     path("upload-sales/", views.upload_sales, name="upload_sales"),
     path("upload-expenses/", views.upload_expenses, name="upload_expenses"),
     path("products/", views.get_products, name="get_products"),

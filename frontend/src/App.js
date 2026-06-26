@@ -1,3 +1,4 @@
+import useAuth from './hooks/useAuth';
 import React, { useState, useCallback, useEffect, useMemo } from "react";
 import axios from "axios";
 import ChartsSection from "./charts/ChartsSection";
@@ -52,6 +53,7 @@ import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 // ── Main App ──────────────────────────────────────────────────────────────────
 
 export default function App() {
+  const { config: authConfig, user: authUser, signInWithCredential, signOut } = useAuth();
   const [colorMode, setColorMode] = useState(() => {
     const stored = localStorage.getItem("colorMode");
     const mode = stored
@@ -291,6 +293,11 @@ export default function App() {
 
         {/* ── AppBar ── */}
         <AppNavBar
+        authConfig={authConfig}
+        authUser={authUser}
+        onGoogleCredential={signInWithCredential}
+        onSignOut={signOut}
+        
           bothUploaded={bothUploaded}
           hasAnyFile={!!(salesFile || expensesFile)}
           pdfLoading={pdfLoading}
