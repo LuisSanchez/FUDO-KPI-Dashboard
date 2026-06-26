@@ -1,13 +1,10 @@
 import io
-import pickle
-
 import pandas as pd
 from django.http import HttpResponse
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 
-from .models import UserSessionData
 from .data_processing import (
     sales_clean_up_data,
     kpi_calculations,
@@ -24,38 +21,15 @@ from .data_processing import (
     get_uber_eats_analysis,
     get_sunday_analysis,
 )
-
-
-# ── Session helpers ────────────────────────────────────────────────────────────
-
-
-def _get_store(request) -> UserSessionData:
-    """Return (or create) the UserSessionData row for the current browser session."""
-    if not request.session.session_key:
-        request.session.create()
-    store, _ = UserSessionData.objects.get_or_create(
-        session_key=request.session.session_key
-    )
-    return store
-
-
-def _load_df(blob) -> pd.DataFrame:
-    """Deserialize a pickled DataFrame from a BinaryField value."""
-    if blob is None:
-        return pd.DataFrame()
-    return pickle.loads(bytes(blob))
-
-
-def _dump_df(df: pd.DataFrame | None) -> bytes | None:
-    """Serialize a DataFrame to bytes for BinaryField storage."""
-    if df is None:
-        return None
-    return pickle.dumps(df)
+from .services.session_store import (
+    get_or_create_store as _get_store,
+    load_df as _load_df,
+    dump_df as _dump_df,
+    clear_store,
+)
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
-
-
 @api_view(["POST"])
 def upload_sales(request):
     """Upload and validate sales Excel file."""
@@ -365,11 +339,7 @@ def price_cost_simulator(request):
 def reset_data(request):
     """Reset all uploaded data for this session."""
     store = _get_store(request)
-    store.sales_df_pickle = None
-    store.expenses_df_pickle = None
-    store.products = []
-    store.sales_months = []
-    store.save()
+    clear_store(store)
     return Response({"message": "Data reset successfully"})
 
 
