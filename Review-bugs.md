@@ -27,7 +27,7 @@ The same promotion type created through FUDO's own POS (non-Uber Eats orders) re
 ---
 
 ### Example case — Id. Venta 1861
-Uber ID 
+Uber ID
 https://merchants.ubereats.com/manager/orders/5a5e0548-b823-4d40-9b7e-884b8d4c6b40
 
 | Field               | Value                     |

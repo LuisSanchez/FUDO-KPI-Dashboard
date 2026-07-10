@@ -2,9 +2,10 @@
 Django settings for pizza_simulator project.
 """
 
-from pathlib import Path
-import environ
 import os
+from pathlib import Path
+
+import environ
 
 env = environ.Env()
 environ.Env.read_env()
@@ -13,9 +14,7 @@ environ.Env.read_env()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = env.str(
-    "SECRET_KEY", default="django-insecure-development-key-for-testing-only"
-)
+SECRET_KEY = env.str("SECRET_KEY", default="django-insecure-development-key-for-testing-only")
 
 DEBUG = env.bool("DEBUG", False)
 
@@ -159,4 +158,3 @@ GOOGLE_CLIENT_ID = env.str("GOOGLE_CLIENT_ID", default="")
 GOOGLE_CLIENT_SECRET = env.str("GOOGLE_CLIENT_SECRET", default="")
 # When True, API endpoints (except auth/config) require an authenticated user.
 REQUIRE_AUTH = env.bool("REQUIRE_AUTH", default=False)
-

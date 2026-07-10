@@ -68,8 +68,23 @@ image-up:
 	--name omp \
 	omp
 
+dev-tools:
+	uv pip install --python .venv/bin/python -r ./backend/requirements-dev.txt
+	cd ./frontend && npm install
+	.venv/bin/pre-commit install
+
 test:
-	cd backend && pip install -q -r requirements-dev.txt && pytest
+	bash scripts/check-backend.sh
+	bash scripts/check-frontend.sh
 
 test-be:
-	cd backend && pytest
+	bash scripts/check-backend.sh
+
+test-fe:
+	bash scripts/check-frontend.sh
+
+lint:
+	.venv/bin/ruff check backend
+	cd frontend && npm run lint
+
+check: lint test

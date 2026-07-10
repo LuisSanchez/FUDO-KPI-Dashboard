@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { Bar } from "react-chartjs-2";
 import { Box, Typography } from "@mui/material";
-import { useChartConfig, COLORS, PALETTE } from "./chartConfig";
+import { useChartConfig, PALETTE } from "./chartConfig";
 
 const TopProductsByQuantity = ({
   top10Quantity,

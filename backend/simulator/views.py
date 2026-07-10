@@ -1,31 +1,38 @@
 import io
+
 import pandas as pd
 from django.http import HttpResponse
+from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from rest_framework import status
 
 from .data_processing import (
-    sales_clean_up_data,
-    kpi_calculations,
-    validate_sales_columns,
-    validate_expenses_columns,
-    get_unique_products,
-    get_sales_table,
-    get_expenses_table,
     get_chart_data,
+    get_expenses_table,
     get_product_prices_table,
-    simulate_price_cost,
-    get_sales_excel,
     get_promotion_advisor,
-    get_uber_eats_analysis,
+    get_sales_excel,
+    get_sales_table,
     get_sunday_analysis,
+    get_uber_eats_analysis,
+    get_unique_products,
+    kpi_calculations,
+    sales_clean_up_data,
+    simulate_price_cost,
+    validate_expenses_columns,
+    validate_sales_columns,
+)
+from .services.session_store import (
+    clear_store,
+)
+from .services.session_store import (
+    dump_df as _dump_df,
 )
 from .services.session_store import (
     get_or_create_store as _get_store,
+)
+from .services.session_store import (
     load_df as _load_df,
-    dump_df as _dump_df,
-    clear_store,
 )
 
 
@@ -34,9 +41,7 @@ from .services.session_store import (
 def upload_sales(request):
     """Upload and validate sales Excel file."""
     if "file" not in request.FILES:
-        return Response(
-            {"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
 
     file = request.FILES["file"]
 
@@ -65,12 +70,7 @@ def upload_sales(request):
 
         df_clean = sales_clean_up_data(df=df)
         months = sorted(
-            df_clean["created_at"]
-            .dt.to_period("M")
-            .dropna()
-            .astype(str)
-            .unique()
-            .tolist()
+            df_clean["created_at"].dt.to_period("M").dropna().astype(str).unique().tolist()
         )
         products = get_unique_products(df=df_clean)
 
@@ -101,9 +101,7 @@ def upload_sales(request):
 def upload_expenses(request):
     """Upload and validate expenses Excel file."""
     if "file" not in request.FILES:
-        return Response(
-            {"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
 
     file = request.FILES["file"]
 
@@ -174,9 +172,7 @@ def get_products(request):
     """Get list of available products from uploaded sales data."""
     store = _get_store(request)
     if store.sales_df_pickle is None:
-        return Response(
-            {"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST)
     return Response({"products": store.products})
 
 
@@ -185,9 +181,7 @@ def calculate(request):
     """Calculate KPIs with optional product/month filter."""
     store = _get_store(request)
     if store.sales_df_pickle is None:
-        return Response(
-            {"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST)
     if store.expenses_df_pickle is None:
         return Response(
             {"error": "No expenses data uploaded yet"},
@@ -202,9 +196,7 @@ def calculate(request):
         df_expenses = _load_df(store.expenses_df_pickle).copy()
 
         if month:
-            df_sales = df_sales[
-                df_sales["created_at"].dt.to_period("M").astype(str) == month
-            ]
+            df_sales = df_sales[df_sales["created_at"].dt.to_period("M").astype(str) == month]
 
         results = kpi_calculations(df_sales, df_expenses, producto=producto)
         return Response(results)
@@ -223,9 +215,7 @@ def sales_table_data(request):
     """Return per-product sales aggregation for table display."""
     store = _get_store(request)
     if store.sales_df_pickle is None:
-        return Response(
-            {"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST)
 
     month = request.query_params.get("month")
     df = _load_df(store.sales_df_pickle).copy()
@@ -254,9 +244,7 @@ def chart_data(request):
     """Return all chart datasets for the selected month."""
     store = _get_store(request)
     if store.sales_df_pickle is None:
-        return Response(
-            {"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST)
 
     month = request.query_params.get("month")
     df = _load_df(store.sales_df_pickle).copy()
@@ -271,9 +259,7 @@ def product_prices_data(request):
     """Return per-product average pricing and raw margin breakdown."""
     store = _get_store(request)
     if store.sales_df_pickle is None:
-        return Response(
-            {"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST)
 
     month = request.query_params.get("month")
     df = _load_df(store.sales_df_pickle).copy()
@@ -296,9 +282,7 @@ def price_cost_simulator(request):
     """
     store = _get_store(request)
     if store.sales_df_pickle is None:
-        return Response(
-            {"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST)
     if store.expenses_df_pickle is None:
         return Response(
             {"error": "No expenses data uploaded yet"},
@@ -320,13 +304,9 @@ def price_cost_simulator(request):
         df_expenses = _load_df(store.expenses_df_pickle).copy()
 
         if month:
-            df_sales = df_sales[
-                df_sales["created_at"].dt.to_period("M").astype(str) == month
-            ]
+            df_sales = df_sales[df_sales["created_at"].dt.to_period("M").astype(str) == month]
 
-        result = simulate_price_cost(
-            df_sales, df_expenses, price_increase, cost_increase
-        )
+        result = simulate_price_cost(df_sales, df_expenses, price_increase, cost_increase)
         return Response(result)
     except Exception as e:
         return Response(
@@ -350,9 +330,7 @@ def download_report(request):
 
     store = _get_store(request)
     if store.sales_df_pickle is None:
-        return Response(
-            {"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST)
     if store.expenses_df_pickle is None:
         return Response(
             {"error": "No expenses data uploaded yet"},
@@ -371,12 +349,7 @@ def download_report(request):
             filename = f"reporte-{month}.pdf"
         else:
             months_in_data = sorted(
-                df_sales["created_at"]
-                .dt.to_period("M")
-                .dropna()
-                .astype(str)
-                .unique()
-                .tolist()
+                df_sales["created_at"].dt.to_period("M").dropna().astype(str).unique().tolist()
             )
             if len(months_in_data) == 1:
                 filename = f"reporte-{months_in_data[0]}.pdf"
@@ -408,26 +381,20 @@ def download_excel(request):
 
     store = _get_store(request)
     if store.sales_df_pickle is None:
-        return Response(
-            {"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST)
 
     month = request.query_params.get("month")
 
     try:
         df_sales = _load_df(store.sales_df_pickle).copy()
         if month:
-            df_sales = df_sales[
-                df_sales["created_at"].dt.to_period("M").astype(str) == month
-            ]
+            df_sales = df_sales[df_sales["created_at"].dt.to_period("M").astype(str) == month]
 
         xlsx_bytes = get_sales_excel(df_sales, categoria)
 
         suffix = f"-{month}" if month else ""
         filename = f"ventas-{categoria.lower()}{suffix}.xlsx"
-        content_type = (
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+        content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         response = HttpResponse(xlsx_bytes, content_type=content_type)
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
         return response
@@ -444,18 +411,14 @@ def promotion_advisor(request):
     """Return data-driven promotion recommendations for the current session data."""
     store = _get_store(request)
     if store.sales_df_pickle is None:
-        return Response(
-            {"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST)
 
     month = request.query_params.get("month")
 
     try:
         df_sales = _load_df(store.sales_df_pickle).copy()
         if month:
-            df_sales = df_sales[
-                df_sales["created_at"].dt.to_period("M").astype(str) == month
-            ]
+            df_sales = df_sales[df_sales["created_at"].dt.to_period("M").astype(str) == month]
         result = get_promotion_advisor(df_sales)
         return Response(result)
     except Exception as e:
@@ -470,18 +433,14 @@ def uber_eats_analysis(request):
     """Uber Eats margin analysis + optional break-even when expense data is available."""
     store = _get_store(request)
     if store.sales_df_pickle is None:
-        return Response(
-            {"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST)
 
     month = request.query_params.get("month")
 
     try:
         df_sales = _load_df(store.sales_df_pickle).copy()
         if month:
-            df_sales = df_sales[
-                df_sales["created_at"].dt.to_period("M").astype(str) == month
-            ]
+            df_sales = df_sales[df_sales["created_at"].dt.to_period("M").astype(str) == month]
 
         df_expenses = (
             _load_df(store.expenses_df_pickle).copy()
@@ -503,18 +462,14 @@ def sunday_analysis(request):
     """Daily break-even analysis to evaluate viability of opening on Sundays."""
     store = _get_store(request)
     if store.sales_df_pickle is None:
-        return Response(
-            {"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"error": "No sales data uploaded yet"}, status=status.HTTP_400_BAD_REQUEST)
 
     month = request.query_params.get("month")
 
     try:
         df_sales = _load_df(store.sales_df_pickle).copy()
         if month:
-            df_sales = df_sales[
-                df_sales["created_at"].dt.to_period("M").astype(str) == month
-            ]
+            df_sales = df_sales[df_sales["created_at"].dt.to_period("M").astype(str) == month]
 
         df_expenses = (
             _load_df(store.expenses_df_pickle).copy()

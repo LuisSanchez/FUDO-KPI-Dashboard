@@ -2,13 +2,11 @@
 URL configuration for pizza_simulator project.
 """
 
-from pathlib import Path
-
-from django.contrib import admin
-from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
+from django.contrib import admin
 from django.http import FileResponse
+from django.urls import include, path, re_path
 
 urlpatterns = [
     path("admin/", admin.site.urls),

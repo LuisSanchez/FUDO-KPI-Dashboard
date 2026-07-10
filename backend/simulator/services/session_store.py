@@ -1,4 +1,5 @@
 """Session-backed DataFrame storage — keeps views free of pickle I/O (DIP)."""
+
 from __future__ import annotations
 
 import pickle
@@ -12,9 +13,7 @@ def get_or_create_store(request) -> UserSessionData:
     """Return (or create) the UserSessionData row for the current browser session."""
     if not request.session.session_key:
         request.session.create()
-    store, _ = UserSessionData.objects.get_or_create(
-        session_key=request.session.session_key
-    )
+    store, _ = UserSessionData.objects.get_or_create(session_key=request.session.session_key)
     return store
 
 

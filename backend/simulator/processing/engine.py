@@ -1,8 +1,9 @@
+import io
 import math
+from typing import Any, Dict, List, Optional
+
 import numpy as np
 import pandas as pd
-import io
-from typing import Dict, Any, List, Optional
 
 # Uber Eats commission: 25% + IVA (19%) — IVA is a recoverable input credit for the
 # restaurant, so the net effective rate on the gross sale price is 25%.
@@ -82,9 +83,7 @@ def _impute_zero_costs(df: pd.DataFrame, lookup: Dict[str, float]) -> pd.DataFra
 
     # 1. Extra promotions
     mask_extra = (
-        (df["Categoría"] == "Extra")
-        & (df["Costo base"] == 0)
-        & (df["Costo modificadores"] == 0)
+        (df["Categoría"] == "Extra") & (df["Costo base"] == 0) & (df["Costo modificadores"] == 0)
     )
     for idx in df[mask_extra].index:
         unit_cost = _lookup_cost(df.at[idx, "Producto"], lookup)
@@ -131,20 +130,14 @@ def sales_clean_up_data(df: pd.DataFrame) -> pd.DataFrame:
     # At least one sale row has the correct cost; use the highest per-unit value found.
     _PATCH_PRODUCTS = ["Pizza Napoli", "Pizza Veggie G"]
     _PATCH_PERIOD = "2026-03"
-    _creation_period = (
-        pd.to_datetime(df["Creación"], errors="coerce").dt.to_period("M").astype(str)
-    )
+    _creation_period = pd.to_datetime(df["Creación"], errors="coerce").dt.to_period("M").astype(str)
     for _prod in _PATCH_PRODUCTS:
         _in_period = (_creation_period == _PATCH_PERIOD) & (df["Producto"] == _prod)
         _valid = df[_in_period & (df["Costo base"] > 0)]
         if not _valid.empty:
-            _best_unit_cost = (
-                _valid["Costo base"] / _valid["Cantidad"].replace(0, 1)
-            ).max()
+            _best_unit_cost = (_valid["Costo base"] / _valid["Cantidad"].replace(0, 1)).max()
             _zero_mask = _in_period & (df["Costo base"] == 0)
-            df.loc[_zero_mask, "Costo base"] = (
-                _best_unit_cost * df.loc[_zero_mask, "Cantidad"]
-            )
+            df.loc[_zero_mask, "Costo base"] = _best_unit_cost * df.loc[_zero_mask, "Cantidad"]
 
     # if Producto column is 'Duo Familiar (2pizzas)' set Costo modificadores to 0
     df.loc[df["Producto"] == "Duo Familiar (2pizzas)", "Costo modificadores"] = 0
@@ -155,14 +148,10 @@ def sales_clean_up_data(df: pd.DataFrame) -> pd.DataFrame:
     df["ingreso"] = df["precio_unitario"] * df["Cantidad"]
 
     df["comision"] = 0.0
-    df.loc[df["Creada por"] == "uber_eats", "comision"] = (
-        df["ingreso"] * UBER_COMMISSION_RATE
-    )
+    df.loc[df["Creada por"] == "uber_eats", "comision"] = df["ingreso"] * UBER_COMMISSION_RATE
 
     df["Costo total"] = (
-        (df["costo_unitario"] * df["Cantidad"])
-        + df["Costo modificadores"]
-        + df["comision"]
+        (df["costo_unitario"] * df["Cantidad"]) + df["Costo modificadores"] + df["comision"]
     )
 
     df["ingreso"] = df["ingreso"].fillna(0).astype(float)
@@ -230,9 +219,7 @@ def kpi_calculations(
     # double-count ingredient costs. The gross margin is shown separately in the
     # UI for per-product analysis only.
     ebitda = total_ingreso_sin_iva - gastos_totales - sueldos
-    ebitda_percentage = (
-        (ebitda / total_ingreso_sin_iva) * 100 if total_ingreso_sin_iva > 0 else 0
-    )
+    ebitda_percentage = (ebitda / total_ingreso_sin_iva) * 100 if total_ingreso_sin_iva > 0 else 0
 
     def r(val):
         return float(round(val, 0))
@@ -245,9 +232,7 @@ def kpi_calculations(
             quantities = product_df["Cantidad"].replace(0, 1)
             avg_ingreso_per_unit = (product_df["ingreso_sin_iva"] / quantities).mean()
             avg_margen_per_unit = (product_df["margen_sin_iva"] / quantities).mean()
-            avg_costo_ing_per_unit = (
-                product_df["costo_ingredientes_sin_iva"] / quantities
-            ).mean()
+            avg_costo_ing_per_unit = (product_df["costo_ingredientes_sin_iva"] / quantities).mean()
             # Contribution per unit = ingreso − ingredient cost only.
             # Uber Eats commission is NOT in the expense file (Uber pays net),
             # so it is not a variable cost in the EBITDA = ingreso − gastos model.
@@ -280,17 +265,11 @@ def kpi_calculations(
                     numer = 0.25 * total_ingreso_sin_iva - ebitda
                     target_25_units = max(0, math.ceil(numer / denom))
                 else:
-                    target_25_units = (
-                        None  # product margin % too low to ever reach 25% EBITDA
-                    )
+                    target_25_units = None  # product margin % too low to ever reach 25% EBITDA
 
             current_units = int(product_df["Cantidad"].sum())
-            breakeven_units_int = (
-                int(breakeven_units) if breakeven_units is not None else None
-            )
-            target_25_units_int = (
-                int(target_25_units) if target_25_units is not None else None
-            )
+            breakeven_units_int = int(breakeven_units) if breakeven_units is not None else None
+            target_25_units_int = int(target_25_units) if target_25_units is not None else None
 
             simulation = {
                 "producto": producto,
@@ -301,14 +280,10 @@ def kpi_calculations(
                 "breakeven_units": breakeven_units_int,
                 "target_25_units": target_25_units_int,
                 "total_for_breakeven": (
-                    current_units + breakeven_units_int
-                    if breakeven_units_int is not None
-                    else None
+                    current_units + breakeven_units_int if breakeven_units_int is not None else None
                 ),
                 "total_for_25pct": (
-                    current_units + target_25_units_int
-                    if target_25_units_int is not None
-                    else None
+                    current_units + target_25_units_int if target_25_units_int is not None else None
                 ),
                 "already_breakeven": bool(already_breakeven),
                 "already_25pct": bool(already_25pct),
@@ -339,9 +314,7 @@ def kpi_calculations(
 
     local_rev = df_local["ingreso_sin_iva"].sum()
     local_margin_pct = (
-        float(df_local["margen_sin_iva"].sum() / local_rev * 100)
-        if local_rev > 0
-        else 0.0
+        float(df_local["margen_sin_iva"].sum() / local_rev * 100) if local_rev > 0 else 0.0
     )
 
     uber_rev = df_uber["ingreso_sin_iva"].sum()
@@ -510,13 +483,9 @@ def get_sales_table(df: pd.DataFrame, by_channel: bool = True) -> List[Dict]:
     )
 
     # Compute percentages before rounding absolute values
-    grouped["cmv_pct"] = (
-        (grouped["cmv"] / grouped["ingreso_sin_iva"] * 100).round(1).fillna(0)
-    )
+    grouped["cmv_pct"] = (grouped["cmv"] / grouped["ingreso_sin_iva"] * 100).round(1).fillna(0)
     grouped["margen_pct"] = (
-        (grouped["margen_sin_iva"] / grouped["ingreso_sin_iva"] * 100)
-        .round(1)
-        .fillna(0)
+        (grouped["margen_sin_iva"] / grouped["ingreso_sin_iva"] * 100).round(1).fillna(0)
     )
     # Commission % (sin IVA basis) so that CMV% + comision_pct + margen_pct = 100%
     comision_sin_iva = grouped["comision"] / 1.19
@@ -539,9 +508,7 @@ def get_sales_table(df: pd.DataFrame, by_channel: bool = True) -> List[Dict]:
     return grouped.to_dict(orient="records")
 
 
-def get_expenses_table(
-    df_expenses: pd.DataFrame, month: Optional[str] = None
-) -> List[Dict]:
+def get_expenses_table(df_expenses: pd.DataFrame, month: Optional[str] = None) -> List[Dict]:
     """Return individual expense rows for table display."""
     df = df_expenses[df_expenses["Cancelado"] == "No"].copy()
     df["Fecha"] = pd.to_datetime(df["Fecha"], errors="coerce")
@@ -583,20 +550,14 @@ def get_chart_data(df: pd.DataFrame) -> Dict[str, Any]:
     # 1 & 2. Hourly: count of line items and revenue
     hourly_count = df.groupby("hour").size().reindex(range(24), fill_value=0)
     hourly_revenue = (
-        df.groupby("hour")["ingreso_sin_iva"]
-        .sum()
-        .reindex(range(24), fill_value=0)
-        .round(0)
+        df.groupby("hour")["ingreso_sin_iva"].sum().reindex(range(24), fill_value=0).round(0)
     )
 
     # Daily: count of line items and revenue per calendar day
     all_days = range(1, 32)
     daily_count = df.groupby("day").size().reindex(all_days, fill_value=0)
     daily_revenue = (
-        df.groupby("day")["ingreso_sin_iva"]
-        .sum()
-        .reindex(all_days, fill_value=0)
-        .round(0)
+        df.groupby("day")["ingreso_sin_iva"].sum().reindex(all_days, fill_value=0).round(0)
     )
     # Trim trailing zeros (days beyond the last active day in the data)
     last_active_day = int(df["day"].max()) if not df.empty else 1
@@ -605,10 +566,7 @@ def get_chart_data(df: pd.DataFrame) -> Dict[str, Any]:
     # Weekday: accumulated count and revenue per day-of-week (Mon–Sun)
     weekday_count = df.groupby("weekday").size().reindex(range(7), fill_value=0)
     weekday_revenue = (
-        df.groupby("weekday")["ingreso_sin_iva"]
-        .sum()
-        .reindex(range(7), fill_value=0)
-        .round(0)
+        df.groupby("weekday")["ingreso_sin_iva"].sum().reindex(range(7), fill_value=0).round(0)
     )
 
     # 3 & 4 & 5 & 6. Per-product aggregation (with Categoría for category splits)
@@ -629,9 +587,7 @@ def get_chart_data(df: pd.DataFrame) -> Dict[str, Any]:
     def _top10(sub, metric):
         return [
             {"Producto": r["Producto"], metric: float(r[metric])}
-            for r in sub.nlargest(10, metric)[["Producto", metric]].to_dict(
-                orient="records"
-            )
+            for r in sub.nlargest(10, metric)[["Producto", metric]].to_dict(orient="records")
         ]
 
     esp = by_product_cat[by_product_cat["Categoría"] == "Especialidades"]
@@ -665,10 +621,7 @@ def get_chart_data(df: pd.DataFrame) -> Dict[str, Any]:
     CHANNELS = ["Uber Eats", "Local"]
     ch_units = df.groupby("_canal")["Cantidad"].sum().reindex(CHANNELS, fill_value=0)
     ch_revenue = (
-        df.groupby("_canal")["ingreso_sin_iva"]
-        .sum()
-        .reindex(CHANNELS, fill_value=0)
-        .round(0)
+        df.groupby("_canal")["ingreso_sin_iva"].sum().reindex(CHANNELS, fill_value=0).round(0)
     )
 
     # Category × channel (Especialidades and Extras only)
@@ -749,10 +702,7 @@ def get_product_prices_table(df: pd.DataFrame) -> List[Dict]:
 
     # Average Uber Eats price per product (from uber_eats rows only)
     uber_avg_precio = (
-        df[df["Creada por"] == "uber_eats"]
-        .groupby("Producto")["precio_unitario"]
-        .mean()
-        .round(0)
+        df[df["Creada por"] == "uber_eats"].groupby("Producto")["precio_unitario"].mean().round(0)
     )
 
     grouped = (
@@ -767,9 +717,7 @@ def get_product_prices_table(df: pd.DataFrame) -> List[Dict]:
         .reset_index()
     )
 
-    grouped["avg_precio_uber_eats"] = (
-        grouped["Producto"].map(uber_avg_precio).fillna(0).round(0)
-    )
+    grouped["avg_precio_uber_eats"] = grouped["Producto"].map(uber_avg_precio).fillna(0).round(0)
 
     grouped["avg_iva"] = grouped["avg_precio"] - grouped["avg_precio_neto"]
     grouped["margen_bruto"] = grouped["avg_precio_neto"] - grouped["avg_costo_neto"]
@@ -856,9 +804,7 @@ def simulate_price_cost(
 
     current_ebitda = total_ingreso_sin_iva - gastos_totales
     current_ebitda_pct = (
-        (current_ebitda / total_ingreso_sin_iva * 100)
-        if total_ingreso_sin_iva > 0
-        else 0
+        (current_ebitda / total_ingreso_sin_iva * 100) if total_ingreso_sin_iva > 0 else 0
     )
 
     # Price impact: only Especialidades units earn more (sin IVA)
@@ -882,9 +828,7 @@ def simulate_price_cost(
     )
 
     total_tickets = int(df["Id. Venta"].nunique()) if "Id. Venta" in df.columns else 0
-    avg_ticket_current = (
-        total_ingreso_sin_iva / total_tickets if total_tickets > 0 else 0
-    )
+    avg_ticket_current = total_ingreso_sin_iva / total_tickets if total_tickets > 0 else 0
     avg_ticket_projected = projected_ingreso / total_tickets if total_tickets > 0 else 0
     contribution_pct_current = (
         (total_ingreso_sin_iva - total_costo_ing_sin_iva) / total_ingreso_sin_iva * 100
@@ -955,9 +899,7 @@ def get_promotion_advisor(df: pd.DataFrame) -> Dict[str, Any]:
             if r["cmv_pct"] <= 0 or r["cantidad"] < 3:
                 continue
             volume_score = min(r["cantidad"] / max_qty, 1.0) * 100
-            score = (
-                r["margen_pct"] * 0.5 + (100 - r["cmv_pct"]) * 0.3 + volume_score * 0.2
-            )
+            score = r["margen_pct"] * 0.5 + (100 - r["cmv_pct"]) * 0.3 + volume_score * 0.2
             razones = []
             if r["margen_pct"] >= 70:
                 razones.append("Margen excelente")
@@ -1002,11 +944,7 @@ def get_promotion_advisor(df: pd.DataFrame) -> Dict[str, Any]:
 
     peak_count = max((v["count"] for v in ue_hourly.values()), default=0)
     best_hours = sorted(
-        [
-            h
-            for h, v in ue_hourly.items()
-            if v["count"] >= peak_count * 0.6 and v["count"] > 0
-        ],
+        [h for h, v in ue_hourly.items() if v["count"] >= peak_count * 0.6 and v["count"] > 0],
         key=lambda h: ue_hourly[h]["count"],
         reverse=True,
     )[:4]
@@ -1055,13 +993,8 @@ def get_sales_excel(df: pd.DataFrame, categoria: str) -> bytes:
     Build an Excel workbook for a single category (e.g. 'Especialidades' or 'Extras')
     containing all products with full calculated columns.  Returns raw bytes.
     """
-    import io
 
-    rows = [
-        r
-        for r in get_sales_table(df, by_channel=True)
-        if r.get("Categoría") == categoria
-    ]
+    rows = [r for r in get_sales_table(df, by_channel=True) if r.get("Categoría") == categoria]
 
     col_map = {
         "Producto": "Producto",
@@ -1109,7 +1042,7 @@ def add_simulated_sales(df: pd.DataFrame, producto: str, cantidad: int) -> pd.Da
         new_id = f"SIM_{max_sim_num + 1}"
     else:
         # Start from 1 if no SIM ids exist
-        new_id = f"SIM_1"
+        new_id = "SIM_1"
 
     # Create single new row with the specified quantity
     new_row = template.copy()
@@ -1155,9 +1088,7 @@ def get_uber_eats_analysis(
     # Commission in the DataFrame is gross (with IVA embedded); net = / 1.19
     by_prod["comision_sin_iva"] = (by_prod["comision"] / 1.19).round(0)
     by_prod["margen_sin_iva"] = (
-        by_prod["ingreso_sin_iva"]
-        - by_prod["costo_ingredientes"]
-        - by_prod["comision_sin_iva"]
+        by_prod["ingreso_sin_iva"] - by_prod["costo_ingredientes"] - by_prod["comision_sin_iva"]
     ).round(0)
     by_prod["margen_pct"] = (
         (by_prod["margen_sin_iva"] / by_prod["ingreso_sin_iva"] * 100)
@@ -1230,9 +1161,7 @@ def get_uber_eats_analysis(
             breakeven_units = fixed_costs / avg_contribution
             breakeven_per_day = breakeven_units / days
             coverage_pct = (
-                min(total_units / breakeven_units * 100, 999)
-                if breakeven_units > 0
-                else 0
+                min(total_units / breakeven_units * 100, 999) if breakeven_units > 0 else 0
             )
         else:
             breakeven_units = 0
@@ -1298,17 +1227,11 @@ def get_sunday_analysis(
     margin_rate = (total_rev - total_cost_ing) / total_rev if total_rev > 0 else 0.0
 
     # Per-weekday revenue (Mon=0 … Sun=6)
-    wday_rev = (
-        df.groupby("weekday")["ingreso_sin_iva"].sum().reindex(range(7), fill_value=0.0)
-    )
+    wday_rev = df.groupby("weekday")["ingreso_sin_iva"].sum().reindex(range(7), fill_value=0.0)
     wday_days = df.groupby("weekday")["_date"].nunique().reindex(range(7), fill_value=0)
 
     weekday_avg = [
-        (
-            round(float(wday_rev[i]) / int(wday_days[i]), 0)
-            if int(wday_days[i]) > 0
-            else 0.0
-        )
+        (round(float(wday_rev[i]) / int(wday_days[i]), 0) if int(wday_days[i]) > 0 else 0.0)
         for i in range(7)
     ]
 

@@ -1,9 +1,9 @@
 """Google OAuth endpoints — disabled unless GOOGLE_OAUTH_ENABLED=True."""
+
 from __future__ import annotations
 
 from django.conf import settings
 from django.contrib.auth import get_user_model, login, logout
-from django.contrib.auth.models import User
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -68,8 +68,8 @@ def auth_google(request):
         return Response({"error": "Missing credential"}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        from google.oauth2 import id_token
         from google.auth.transport import requests as google_requests
+        from google.oauth2 import id_token
 
         idinfo = id_token.verify_oauth2_token(
             credential,

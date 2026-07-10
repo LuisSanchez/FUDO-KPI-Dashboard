@@ -3,23 +3,24 @@
 Implementation lives in ``simulator.processing.engine`` for clearer SoC;
 this module re-exports the historical API so callers need not change.
 """
+
 from simulator.processing.constants import UBER_COMMISSION_RATE
 from simulator.processing.engine import (  # noqa: F401
-    sales_clean_up_data,
-    kpi_calculations,
-    validate_sales_columns,
-    validate_expenses_columns,
-    get_unique_products,
-    get_sales_table,
-    get_expenses_table,
+    add_simulated_sales,
     get_chart_data,
+    get_expenses_table,
     get_product_prices_table,
-    simulate_price_cost,
     get_promotion_advisor,
     get_sales_excel,
-    add_simulated_sales,
-    get_uber_eats_analysis,
+    get_sales_table,
     get_sunday_analysis,
+    get_uber_eats_analysis,
+    get_unique_products,
+    kpi_calculations,
+    sales_clean_up_data,
+    simulate_price_cost,
+    validate_expenses_columns,
+    validate_sales_columns,
 )
 
 __all__ = [

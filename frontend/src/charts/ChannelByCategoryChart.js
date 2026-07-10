@@ -8,19 +8,17 @@ const CHANNEL_STYLE = {
   Local: { bg: "#22C55E80", border: "#22C55E" },
 };
 
+const CATS = ["Especialidades", "Extras"];
+const CHANNELS = ["Uber Eats", "Local"];
+
 const ChannelByCategoryChart = ({
   channelByCategory,
   showRevenue = false,
   height = 260,
 }) => {
   const { colors, baseOptions: bOpts } = useChartConfig();
-  const CATS = ["Especialidades", "Extras"];
-  const CHANNELS = ["Uber Eats", "Local"];
 
   const metric = showRevenue ? "revenue" : "units";
-  const formatter = showRevenue
-    ? CLP
-    : (v) => `${v.toLocaleString("es-CL")} uds.`;
   const ylabel = showRevenue ? "Ingreso s/IVA (CLP)" : "Unidades vendidas";
 
   const data = useMemo(() => {
@@ -38,8 +36,11 @@ const ChannelByCategoryChart = ({
     };
   }, [channelByCategory, metric]);
 
-  const options = useMemo(
-    () => ({
+  const options = useMemo(() => {
+    const formatter = showRevenue
+      ? CLP
+      : (v) => `${v.toLocaleString("es-CL")} uds.`;
+    return {
       ...bOpts,
       plugins: {
         ...bOpts.plugins,
@@ -63,9 +64,9 @@ const ChannelByCategoryChart = ({
           },
         },
       },
-    }),
-    [bOpts, colors, showRevenue],
-  );
+    };
+  }, [bOpts, colors, ylabel, showRevenue]);
+
 
   if (!data) return null;
 

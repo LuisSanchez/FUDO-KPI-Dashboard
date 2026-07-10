@@ -4,19 +4,18 @@ PDF financial report generator for the FUDO Analytics simulator.
 Entry point: build_financial_report(df_sales, df_expenses, month=None) -> bytes
 """
 
+import datetime
 import io
 import math
-import datetime
 
 import pandas as pd
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.platypus import (
     HRFlowable,
-    KeepTogether,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
@@ -26,7 +25,6 @@ from reportlab.platypus import (
 
 from .data_processing import (
     get_sales_table,
-    get_product_prices_table,
     kpi_calculations,
 )
 
@@ -54,9 +52,7 @@ def _s(name, **kw):
     return ParagraphStyle(name, parent=_SS["Normal"], **kw)
 
 
-NOTA_STYLE = _s(
-    "nota_cell", fontSize=7.5, textColor=SUBTEXT, fontName="Helvetica", leading=11
-)
+NOTA_STYLE = _s("nota_cell", fontSize=7.5, textColor=SUBTEXT, fontName="Helvetica", leading=11)
 
 ST = {
     "cover_title": _s(
@@ -93,9 +89,7 @@ ST = {
         spaceAfter=4,
     ),
     "body": _s("bd", fontSize=9, textColor=TEXT, fontName="Helvetica", leading=14),
-    "bodysub": _s(
-        "bs", fontSize=8.5, textColor=SUBTEXT, fontName="Helvetica", leading=13
-    ),
+    "bodysub": _s("bs", fontSize=8.5, textColor=SUBTEXT, fontName="Helvetica", leading=13),
     "info": _s(
         "if",
         fontSize=9,
@@ -143,9 +137,7 @@ def _P(text, style="body"):
 
 
 def _HR(color=BORDER, t=0.5, sp=4):
-    return HRFlowable(
-        width="100%", thickness=t, color=color, spaceAfter=sp, spaceBefore=sp
-    )
+    return HRFlowable(width="100%", thickness=t, color=color, spaceAfter=sp, spaceBefore=sp)
 
 
 def _clp(n):
@@ -178,9 +170,7 @@ def _kpi_summary_table(kpis):
     total_ingreso = ing["total_ingreso_sin_iva"]
     comision_sin_iva = ing["comision_total"] / 1.19
     comision_pct_total = comision_sin_iva / total_ingreso * 100 if total_ingreso else 0
-    margen_bruto_pct = (
-        ing["total_margen_sin_iva"] / total_ingreso * 100 if total_ingreso else 0
-    )
+    margen_bruto_pct = ing["total_margen_sin_iva"] / total_ingreso * 100 if total_ingreso else 0
 
     rows = [
         ["Concepto", "Monto (s/IVA)", "Detalle"],
@@ -205,9 +195,7 @@ def _kpi_summary_table(kpis):
         [
             "  Margen bruto (s/IVA)",
             _clp(ing["total_margen_sin_iva"]),
-            Paragraph(
-                f"{margen_bruto_pct:.1f}% · CMV + Comisión + Margen = 100%", NOTA_STYLE
-            ),
+            Paragraph(f"{margen_bruto_pct:.1f}% · CMV + Comisión + Margen = 100%", NOTA_STYLE),
         ],
         ["Gastos operacionales", _clp(-gas["gastos_totales"]), ""],
         [
@@ -222,9 +210,7 @@ def _kpi_summary_table(kpis):
         ],
     ]
     if gas["prestamos_socios"] > 0:
-        rows.insert(
-            -1, ["  Préstamos (excl.)", _clp(gas["prestamos_socios"]), "No operacional"]
-        )
+        rows.insert(-1, ["  Préstamos (excl.)", _clp(gas["prestamos_socios"]), "No operacional"])
     if gas["activo_fijo"] > 0:
         rows.insert(-1, ["  Activo fijo (excl.)", _clp(gas["activo_fijo"]), "CapEx"])
 
@@ -272,7 +258,6 @@ def _sales_table(df_sales, categoria=None):
 
 def _breakeven_section(kpis, df_sales):
     ing = kpis["ingresos"]
-    gas = kpis["gastos"]
     ebt = kpis["ebitda"]
 
     total_ingreso = ing["total_ingreso_sin_iva"]
@@ -296,9 +281,7 @@ def _breakeven_section(kpis, df_sales):
     # Uber Eats commission is already netted out by the platform (Uber pays net),
     # so it does not scale with additional orders in the EBITDA model.
     avg_contribution_per_ticket = (total_ingreso - total_cmv) / total_tickets
-    contribution_pct = (
-        avg_contribution_per_ticket / avg_ticket * 100 if avg_ticket else 0
-    )
+    contribution_pct = avg_contribution_per_ticket / avg_ticket * 100 if avg_ticket else 0
 
     # Break-even: ebitda + x*c = 0  →  x = -ebitda / c
     if ebitda >= 0:
@@ -310,9 +293,7 @@ def _breakeven_section(kpis, df_sales):
         be_tickets_total = total_tickets + be_tickets_needed
         be_note = ""
     else:
-        return _P(
-            "Contribución por ticket negativa. Revisar precios y costos.", "bodysub"
-        )
+        return _P("Contribución por ticket negativa. Revisar precios y costos.", "bodysub")
 
     # 25% EBITDA: x = (0.25*I - ebitda) / (c - 0.25*avg_ticket)
     denom_25 = avg_contribution_per_ticket - 0.25 * avg_ticket
@@ -395,12 +376,12 @@ def _expenses_breakdown(df_expenses, sales_months):
 
     rows = [["Categoría", "Importe", "% del total", "Pagado", "Por pagar"]]
     for cat, amount in by_cat.items():
-        paid = df_ops[
-            (df_ops["Categoría"] == cat) & (df_ops["Estado del pago"] == "Pagado")
-        ]["Importe"].sum()
-        pending = df_ops[
-            (df_ops["Categoría"] == cat) & (df_ops["Estado del pago"] == "A pagar")
-        ]["Importe"].sum()
+        paid = df_ops[(df_ops["Categoría"] == cat) & (df_ops["Estado del pago"] == "Pagado")][
+            "Importe"
+        ].sum()
+        pending = df_ops[(df_ops["Categoría"] == cat) & (df_ops["Estado del pago"] == "A pagar")][
+            "Importe"
+        ].sum()
         pct = amount / total * 100 if total else 0
         rows.append(
             [
@@ -473,9 +454,7 @@ def _payables_aging(df_expenses, sales_months):
         if subset.empty:
             continue
         amount = subset["Importe"].sum()
-        top_provs = (
-            subset.groupby("Proveedor")["Importe"].sum().nlargest(2).index.tolist()
-        )
+        top_provs = subset.groupby("Proveedor")["Importe"].sum().nlargest(2).index.tolist()
         prov_str = ", ".join(top_provs)[:40]
         rows.append([bucket, _clp(amount), str(len(subset)), prov_str])
 

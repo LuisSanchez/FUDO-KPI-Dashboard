@@ -297,7 +297,7 @@ export default function App() {
         authUser={authUser}
         onGoogleCredential={signInWithCredential}
         onSignOut={signOut}
-        
+
           bothUploaded={bothUploaded}
           hasAnyFile={!!(salesFile || expensesFile)}
           pdfLoading={pdfLoading}

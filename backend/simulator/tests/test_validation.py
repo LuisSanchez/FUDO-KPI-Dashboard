@@ -1,9 +1,9 @@
 import pandas as pd
 
 from simulator.data_processing import (
-    validate_sales_columns,
-    validate_expenses_columns,
     get_unique_products,
+    validate_expenses_columns,
+    validate_sales_columns,
 )
 
 

@@ -1,7 +1,7 @@
 from simulator.data_processing import (
-    sales_clean_up_data,
-    kpi_calculations,
     UBER_COMMISSION_RATE,
+    kpi_calculations,
+    sales_clean_up_data,
 )
 
 
@@ -36,7 +36,11 @@ def test_kpi_ebitda_is_revenue_minus_expenses(sample_sales_df, sample_expenses_d
     assert "ebitda" in kpis
     assert "ebitda" in kpis["ebitda"]
     ebitda = kpis["ebitda"]["ebitda"]
-    expected = float(cleaned["ingreso_sin_iva"].sum() - sample_expenses_df["Importe"].sum())
+    # EBITDA = net revenue − operational expenses only (exclude loans, capex, cancelled)
+    df_exp = sample_expenses_df[sample_expenses_df["Cancelado"] == "No"].copy()
+    is_loan = df_exp["Proveedor"].str.contains("Prestamo", case=False, na=False)
+    is_capex = df_exp["Categoría"] == "Activo Fijo"
+    gastos_ops = float(df_exp[~is_loan & ~is_capex]["Importe"].sum())
+    expected = float(cleaned["ingreso_sin_iva"].sum() - gastos_ops)
     assert abs(ebitda - expected) < 1.0
-    # tickets live under operational / ventas metrics depending on shape
     assert "ingresos" in kpis

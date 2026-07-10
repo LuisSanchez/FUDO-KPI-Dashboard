@@ -24,6 +24,8 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
+    "test:ci": "CI=true react-scripts test --coverage --watchAll=false --coverageReporters=text --coverageReporters=text-summary",
+    "lint": "eslint \"src/**/*.{js,jsx}\" --max-warnings=0",
     "eject": "react-scripts eject",
     "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,json,css,md}\""
   },
@@ -32,6 +34,27 @@
       "react-app",
       "react-app/jest"
     ]
+  },
+  "jest": {
+    "collectCoverageFrom": [
+      "src/utils/**/*.{js,jsx}",
+      "src/hooks/**/*.{js,jsx}",
+      "src/api/**/*.{js,jsx}",
+      "src/pages/**/*.{js,jsx}",
+      "src/theme.js",
+      "src/ColorModeContext.js",
+      "!src/**/__tests__/**",
+      "!src/**/*.test.{js,jsx}"
+    ],
+
+    "coverageThreshold": {
+      "global": {
+        "statements": 75,
+        "branches": 70,
+        "functions": 75,
+        "lines": 75
+      }
+    }
   },
   "browserslist": {
     "production": [

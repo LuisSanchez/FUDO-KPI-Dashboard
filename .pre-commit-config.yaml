@@ -1,0 +1,54 @@
+# Pre-commit: lint + unit tests with coverage gates (≥75% backend & frontend).
+# Install:  uv pip install --python .venv/bin/python pre-commit && pre-commit install
+# Run all:  pre-commit run --all-files
+default_language_version:
+  python: python3.12
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^(frontend/build/|\.venv/|.*\.sqlite3$)
+      - id: end-of-file-fixer
+        exclude: ^(frontend/build/|\.venv/|.*\.sqlite3$)
+      - id: check-yaml
+      - id: check-json
+        exclude: ^(frontend/package-lock\.json|package-lock\.json|\.vscode/)
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=1000"]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.10
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        files: ^backend/
+        exclude: ^backend/lab/
+      - id: ruff-format
+        files: ^backend/
+        exclude: ^backend/lab/
+
+  - repo: local
+    hooks:
+      - id: backend-unit-tests
+        name: backend unit tests + coverage ≥75%
+        entry: bash scripts/check-backend.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: frontend-lint
+        name: frontend eslint
+        entry: bash -c 'cd frontend && npm run lint'
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: frontend-unit-tests
+        name: frontend unit tests + coverage ≥75%
+        entry: bash scripts/check-frontend.sh
+        language: system
+        pass_filenames: false
+        always_run: true
