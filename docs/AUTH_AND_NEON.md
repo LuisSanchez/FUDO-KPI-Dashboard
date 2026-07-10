@@ -1,5 +1,7 @@
 # Auth & Neon (Railway-safe)
 
+Optional features. Agent overview: [AGENTS.md](../AGENTS.md).
+
 ## Defaults (no env = current behavior)
 
 - **SQLite** at `backend/db.sqlite3`

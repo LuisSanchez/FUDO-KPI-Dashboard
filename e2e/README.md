@@ -1,6 +1,8 @@
 # E2E (Playwright)
 
-Not part of the Railway/Docker image. Run locally or in CI with services up.
+Optional end-to-end suite. Not part of the Railway/Docker image and **not** required by pre-commit (unit tests + coverage are). Project map: [AGENTS.md](../AGENTS.md).
+
+Run locally with services up:
 
 ```bash
 # terminal 1: backend + frontend (or make run)
