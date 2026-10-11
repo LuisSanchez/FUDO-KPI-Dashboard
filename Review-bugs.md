@@ -4,9 +4,9 @@
 
 ## BUG-001 — Uber Eats promotion items exported with zero ingredient cost
 
-**Severity**: Medium (affects EBITDA accuracy — understates real COGS)
-**Status**: Mitigated in code (cost imputation applied at import time)
-**Affected file**: `backend/simulator/data_processing.py` → `_impute_zero_costs()`
+**Severity**: Medium (affects product CMV — understates ingredient cost on promo rows)
+**Status**: Mask does not match current FUDO exports (re-checked 2026-10-11)
+**Affected file**: `backend/simulator/processing/engine.py` → `_impute_zero_costs()`
 
 ---
 
@@ -54,7 +54,7 @@ FUDO likely sends a simplified payload to the Uber Eats integration layer that o
 
 ### Mitigation applied (2026-03-29)
 
-`_impute_zero_costs()` in `data_processing.py` corrects the value at import time:
+`_impute_zero_costs()` in `processing/engine.py` is meant to correct the value at import time:
 
 ```python
 mask_extra = (
@@ -73,6 +73,12 @@ The lookup is built from all non-Extra, non-Arma-Tu-Pizza, non-Producto-Genéric
 **Known limitation**: The current mask applies to ALL `"Extra"` rows with zero cost, not just Uber Eats ones. This is intentionally broad — if a non-Uber-Eats Extra row somehow also has zero cost it will also be corrected, which is the desired behavior. If a distinction is ever needed, add `& (df["Creada por"] == "uber_eats")` to the mask.
 
 ---
+
+### Re-check against lab exports (2026-10-11)
+
+`_impute_zero_costs()` still matches `Categoría == "Extra"`. CG (Feb–Apr 2026) and SM (Oct 2025–Jan 2026) exports use `Extras`. The mask matched zero rows. Zero-price, zero-cost Uber rows in those files sit on `Extras`, `Cup de salsas`, `Arma Tu Pizza`, `Productos genéricos`, and `Especialidades`. `Arma Tu Pizza` children should stay at zero. The `Producto Genérico` branch also misses live names such as `Opcional genérico`.
+
+Separate from this imputation: the engine never reads the FUDO `Descuentos` sheet. Uber `Pagos` equals line `Precio` minus those discounts, and `Gastos` contains no Uber commission invoice. Commission and EBITDA treatment is documented in `AGENTS.md`.
 
 ### Future review checklist
 

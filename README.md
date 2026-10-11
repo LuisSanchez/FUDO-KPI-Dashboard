@@ -133,7 +133,7 @@ contribution/ticket = avg_ticket − avg_CMV/ticket
 breakeven_tickets   = ceil(−EBITDA / contribution_per_ticket)
 ```
 
-**Uber Eats commission:** `UBER_COMMISSION_RATE = 0.25` on gross for Uber rows (commission IVA recoverable).
+**Uber Eats commission:** `comision = Precio × 0.25` when `Creada por` is `uber_eats`. The margin and Uber screens then divide that amount by 1.19. EBITDA does not subtract it, and the FUDO `Descuentos` sheet is not applied. See [`AGENTS.md`](AGENTS.md) before changing this.
 
 **Price simulator:** price increase applies only to **Especialidades**.
 

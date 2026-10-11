@@ -1,6 +1,6 @@
 # AGENTS.md — Agent / contributor context
 
-Read this first. It is the canonical map of **OMP (FUDO Analytics)** so you can navigate, change, and verify the codebase without rediscovering architecture.
+Read this first. It is the only agent map of **OMP (FUDO Analytics)** — `CLAUDE.md` was retired into this file. Use it to navigate, change, and verify the codebase without rediscovering architecture.
 
 Human-facing product overview lives in [`README.md`](README.md). Optional auth/DB details: [`docs/AUTH_AND_NEON.md`](docs/AUTH_AND_NEON.md).
 
@@ -34,9 +34,8 @@ Full-stack **pizza franchise finance dashboard**. Owners upload FUDO POS Excel e
 
 ```
 omp/
-├── AGENTS.md                 # This file — agent onboarding
+├── AGENTS.md                 # This file — only agent onboarding doc
 ├── README.md                 # Product + quick start (humans)
-├── CLAUDE.md                 # Claude Code pointer → mirrors AGENTS rules
 ├── Makefile                  # dev / test / docker entrypoints
 ├── .pre-commit-config.yaml   # ruff, eslint, coverage-gated unit tests
 ├── scripts/
@@ -113,6 +112,8 @@ CRA setupProxy  ──►  Django DRF (:8000)
 | FE auth | `hooks/useAuth.js` + `components/GoogleSignIn.js` |
 
 When adding features: put logic in **engine**, wire thin endpoints in **views**, reuse **data_processing** imports if existing code does. Avoid growing `views.py` with pandas.
+
+Verified against the tree: `processing/` is `engine.py` + `constants.py` only. `data_processing.py` is a re-export facade. Views load Excel and delegate. Do not look for a split `uber.py` / `cleaning.py` — those modules are gone. `pages/DashboardPage.js` re-exports `App.js`.
 
 ---
 
@@ -201,13 +202,44 @@ All numpy/pandas scalars returned from views must be cast to Python `int` / `flo
    - Gastos from expenses file already include materia prima → **do not** also subtract FUDO line-item COGS into EBITDA.
    - Exclude loans (`Proveedor` ~ Prestamo) and CapEx (`Categoría == Activo Fijo`); ignore `Cancelado == "Si"`.
 2. **IVA 19%** — analysis net of IVA (`/ 1.19`).
-3. **Uber commission** — `UBER_COMMISSION_RATE = 0.25` on gross for `Creada por == uber_eats` (IVA on commission recoverable).
+3. **Uber commission** — see the cost model below. Do not regress it without an explicit product decision. `UBER_COMMISSION_RATE = 0.25` is applied only when `Creada por == "uber_eats"` (exact match).
 4. **Break-even / 25% targets** — prefer **tickets** (`Id. Venta` unique), not loose unit counts, in simulators and PDF.
 5. **Price simulator** — `price_increase_clp` applies only to **Especialidades**.
 6. **Session** — re-uploading sales clears expenses; expenses months must overlap sales months.
 7. **Proxy** — never set `axios.defaults.baseURL` in FE dev; use relative `/api` + `withCredentials`.
 
 Formulas and scoring details are also summarized in `README.md` (promotion score, Uber break-even units/day).
+
+### Uber Eats costs (checked 2026-10-11 on lab FUDO exports)
+
+FUDO is the POS. Uber does not push its own cost file into this app. Sales come from sheet `Adiciones`; the fee is computed here.
+
+What the exports show:
+
+- `Precio` on `uber_eats` rows is the customer menu price, not the payout. Same products sell about 1.2–1.4× the local price. FUDO `Costo total` is always `Costo base + Costo modificadores` — the 25% fee is not in the file.
+- Sheet `Pagos` for Uber tickets equals `Precio` minus sheet `Descuentos` (gap ≈ 0 across CG Feb–Apr 2026 and SM Oct 2025–Jan 2026). It is not net of commission. Uber discounts were 10–35% of Uber line prices; local discounts were small.
+- Sheet `Gastos` in those same months has no Uber / marketplace commission invoice. EBITDA therefore never sees the fee.
+
+What the code does today:
+
+```text
+comision            = Precio × 0.25          # KPI card shows this number
+comision used in
+  margen / Uber
+  analysis          = comision / 1.19        # equals 25% of net sales
+EBITDA              = ingreso_sin_iva − gastos operacionales
+                      # commission is not subtracted
+```
+
+Those two commission figures are not the same expense. The constant comment treats 25% of gross as the net cost (IVA on Uber’s invoice is a recoverable crédito fiscal, so do not multiply by 1.19 and do not divide the 25% by 1.19 again). The margin and `/uber-eats/analysis/` paths divide by 1.19 anyway, which understates the fee versus that comment. EBITDA understates it further by omitting it.
+
+Also not applied:
+
+- `Descuentos` is never read, so Uber revenue and the 25% base use pre-discount line prices.
+- `pedidos_ya` is treated as in-store (commission 0). `walker` / caja users too.
+- Zero-cost imputation looks for `Categoría == "Extra"`. Live files use `Extras`, so the mask does not hit current exports. `Arma Tu Pizza` children are intentionally left at zero cost. A hardcoded Mar-2026 patch fills `Pizza Napoli` and `Pizza Veggie G` only.
+
+Do not “fix” any of this silently. New monthly exports should be checked against `Pagos` and `Descuentos` before changing the rate or the base.
 
 ---
 
@@ -226,17 +258,21 @@ Formulas and scoring details are also summarized in `README.md` (promotion score
 | Kind | Location | Gate |
 |------|----------|------|
 | Backend unit/API | `backend/simulator/tests/` | Coverage **≥75%** of `simulator` (omit migrations/tests) |
-| Frontend unit | `frontend/src/**/__tests__`, `*.test.js` | **≥75%** on collectCoverageFrom paths |
+| Frontend unit | `frontend/src/**/__tests__`, `*.test.js` | **≥75%** statements/functions/lines, **≥70%** branches |
 | E2E | `e2e/` | Optional; not required for pre-commit |
 | Lint | ruff / eslint | Pre-commit + CI |
 
 **Rules of engagement:**
 
-- **Do add/update unit tests** when changing engine logic, APIs, or hooks — pre-commit will fail under 75%.
+- **Do add/update unit tests** when changing engine logic, APIs, or hooks. Pre-commit and CI enforce the coverage gates. Add tests; do not disable gates to make a change pass.
 - **Do not** delete Jupyter notebook cells; append new cells; prefer **Plotly** in notebooks.
-- Prefer small, focused PRs; keep views thin.
+- Prefer extending `processing/engine.py` over bloating views. Match existing style; small diffs; no drive-by refactors.
 - Do not force-push shared branches or rewrite published history unless explicitly asked.
-- Optional Neon/OAuth: keep defaults off so Railway/SQLite deploys stay green (`docs/AUTH_AND_NEON.md`).
+- Do not commit secrets. OAuth and Postgres stay env-driven and off by default so Railway/SQLite deploys stay green (`docs/AUTH_AND_NEON.md`).
+
+**Quality gate** (pre-commit, then CI on `main` / `dev`): ruff → backend pytest + coverage → eslint → frontend `test:ci`. Frontend thresholds are 75% statements, functions, and lines, and 70% branches. Install once with `make dev-tools`.
+
+**Related docs:** [`README.md`](README.md) product overview, [`docs/AUTH_AND_NEON.md`](docs/AUTH_AND_NEON.md) optional auth/DB, [`e2e/README.md`](e2e/README.md) Playwright, [`Review-bugs.md`](Review-bugs.md) FUDO Uber cost-imputation notes.
 
 ---
 

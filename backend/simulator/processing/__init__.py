@@ -1,1 +1,1 @@
-"""Domain processing modules (SOLID SRP split)."""
+"""Business logic package. Implementation lives in engine.py."""
