@@ -14,6 +14,8 @@ import DropzoneCard from "./components/DropzoneCard";
 import EbitdaGauge from "./components/EbitdaGauge";
 import SimCard from "./components/SimCard";
 import DashboardKPIBar from "./components/DashboardKPIBar";
+import DataChat from "./components/DataChat";
+import MonthHistory from "./components/MonthHistory";
 import SalesTableModal from "./components/SalesTableModal";
 import ExpensesTableModal from "./components/ExpensesTableModal";
 import ProductPricesModal from "./components/ProductPricesModal";
@@ -90,6 +92,7 @@ export default function App() {
   const [error, setError] = useState(null);
 
   const [helpOpen, setHelpOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const [salesTableOpen, setSalesTableOpen] = useState(false);
   const [expensesTableOpen, setExpensesTableOpen] = useState(false);
   const [pricesTableOpen, setPricesTableOpen] = useState(false);
@@ -99,6 +102,8 @@ export default function App() {
   const [toast, setToast] = useState({ open: false, message: "" });
   const [chartData, setChartData] = useState(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [historyKey, setHistoryKey] = useState(0);
+  const [hasHistory, setHasHistory] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setShowScrollTop(window.scrollY > 400);
@@ -140,10 +145,10 @@ export default function App() {
     [salesFile, expensesFile],
   );
 
-  // Auto-calculate once both files are ready
+  // Auto-calculate once both files are ready, and again after the archive load.
   useEffect(() => {
     if (bothUploaded) calculate(selectedMonth, selectedProduct);
-  }, [bothUploaded]); // eslint-disable-line
+  }, [bothUploaded, historyKey]); // eslint-disable-line
 
   // ── Upload handlers ────────────────────────────────────────────────────────
   const onSalesDrop = useCallback(async (files) => {
@@ -165,6 +170,7 @@ export default function App() {
       // Backend clears expenses on sales re-upload — mirror that in UI
       setExpensesFile(null);
       setResults(null);
+      setHistoryKey((key) => key + 1);
     } catch (err) {
       setError(err.response?.data?.error || "Error al cargar ventas");
     } finally {
@@ -185,6 +191,7 @@ export default function App() {
           headers: { "Content-Type": "multipart/form-data" },
         });
         setExpensesFile(file.name);
+        setHistoryKey((key) => key + 1);
         if (salesFile) calculate(selectedMonth, selectedProduct);
       } catch (err) {
         if (err.response?.data?.error === "date_mismatch") {
@@ -274,6 +281,8 @@ export default function App() {
     setSelectedProduct(null);
     setResults(null);
     setError(null);
+    setHasHistory(false);
+    setHistoryKey((key) => key + 1);
     setToast({ open: false, message: "" });
   };
 
@@ -310,9 +319,11 @@ export default function App() {
           onOpenHelp={() => setHelpOpen(true)}
           onStartTour={startTour}
           onReset={handleReset}
+          onOpenChat={() => setChatOpen(true)}
           colorMode={colorMode}
           onToggleMode={toggleColorMode}
         />
+        <DataChat open={chatOpen} onClose={() => setChatOpen(false)} />
 
         <Container
           maxWidth={false}
@@ -396,6 +407,22 @@ export default function App() {
             </Box>
           )}
 
+          <MonthHistory
+            refreshKey={historyKey}
+            selectedMonth={selectedMonth}
+            onAvailability={setHasHistory}
+            onImported={(payload) => {
+              setSalesFile("Historial 2026");
+              setExpensesFile("Historial 2026");
+              setMonths(payload.months || []);
+              setProducts(payload.products || []);
+              setSelectedMonth("all");
+              setSelectedProduct(null);
+              setResults(null);
+              setHistoryKey((key) => key + 1);
+            }}
+          />
+
           {/* ── KPI Cards ── */}
           {results && (
             <Box
@@ -437,10 +464,10 @@ export default function App() {
                   />
                   <KpiRow label="COGS sin IVA" value={CLP(ing.costo_sin_iva)} />
                   <KpiRow
-                    label="Comisiones Uber Eats"
+                    label="Comisión modelo (25% de la carta)"
                     value={CLP(ing.comision_total)}
                     highlight="neg"
-                    tooltip="25% del ingreso bruto de pedidos Uber Eats (IVA de la comisión es crédito fiscal recuperable)"
+                    tooltip="Modelo de la tarjeta: 25% del precio de carta, antes de descuentos. No es la plata que entra. El neto estimado está en Meses anteriores."
                   />
                   <KpiRow
                     label="Margen bruto sin IVA"
@@ -703,7 +730,7 @@ export default function App() {
           )}
 
           {/* ── Empty state ── */}
-          {!salesFile && !expensesFile && (
+          {!salesFile && !expensesFile && !hasHistory && (
             <Box sx={{ textAlign: "center", py: 10, color: "text.secondary" }}>
               <LocalPizzaIcon sx={{ fontSize: 56, opacity: 0.15, mb: 2 }} />
               <Typography variant="h6" sx={{ opacity: 0.35, fontWeight: 400 }}>

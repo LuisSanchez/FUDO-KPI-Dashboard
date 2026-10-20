@@ -22,4 +22,8 @@ urlpatterns = [
     path("advisor/promotions/", views.promotion_advisor, name="promotion_advisor"),
     path("uber-eats/analysis/", views.uber_eats_analysis, name="uber_eats_analysis"),
     path("sunday-analysis/", views.sunday_analysis, name="sunday_analysis"),
+    path("history/", views.month_history, name="month_history"),
+    path("history/sueldos/", views.set_history_sueldos, name="set_history_sueldos"),
+    path("history/import-archive/", views.import_month_archive, name="import_month_archive"),
+    path("chat/", views.data_chat, name="data_chat"),
 ]

@@ -1,6 +1,7 @@
 import io
 
 import pandas as pd
+from django.conf import settings
 from django.http import HttpResponse
 from rest_framework import status
 from rest_framework.decorators import api_view
@@ -17,11 +18,29 @@ from .data_processing import (
     get_uber_eats_analysis,
     get_unique_products,
     kpi_calculations,
-    sales_clean_up_data,
     simulate_price_cost,
     validate_expenses_columns,
-    validate_sales_columns,
 )
+from .processing.constants import DEFAULT_MONTH_SUELDOS
+from .processing.monthly import (
+    WorkbookError,
+    load_fudo_archive,
+    monthly_performance,
+    read_sales_workbook,
+    sales_months_of,
+)
+from .services.analytics_db import ensure_chat_database
+from .services.month_history import (
+    SueldosError,
+    archive_root,
+    clear_month_sueldos,
+    drop_months,
+    history_payload,
+    replace_history,
+    save_month_sueldos,
+    snapshot_uploaded,
+)
+from .services.openrouter_chat import ChatError, ask
 from .services.session_store import (
     clear_store,
 )
@@ -52,26 +71,8 @@ def upload_sales(request):
         )
 
     try:
-        df = pd.read_excel(io.BytesIO(file.read()), sheet_name="Adiciones")
-
-        if "Cancelada" in df.columns:
-            df = df[df["Cancelada"] == "No"].copy()
-
-        is_valid, missing_columns = validate_sales_columns(df)
-        if not is_valid:
-            return Response(
-                {
-                    "error": "Invalid file format",
-                    "missing_columns": missing_columns,
-                    "available_columns": df.columns.tolist(),
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        df_clean = sales_clean_up_data(df=df)
-        months = sorted(
-            df_clean["created_at"].dt.to_period("M").dropna().astype(str).unique().tolist()
-        )
+        df_clean = read_sales_workbook(file.read())
+        months = sales_months_of(df_clean)
         products = get_unique_products(df=df_clean)
 
         store = _get_store(request)
@@ -79,6 +80,8 @@ def upload_sales(request):
         store.expenses_df_pickle = None  # require re-upload of expenses
         store.products = products
         store.sales_months = months
+        # These months are stale until their expenses come back. Other months stay.
+        drop_months(store, months)
         store.save()
 
         return Response(
@@ -90,6 +93,8 @@ def upload_sales(request):
             }
         )
 
+    except WorkbookError as exc:
+        return Response(exc.payload, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         return Response(
             {"error": f"Error processing file: {str(e)}"},
@@ -150,6 +155,7 @@ def upload_expenses(request):
             )
 
         store.expenses_df_pickle = _dump_df(df)
+        snapshot_uploaded(store, expense_months)
         store.save()
 
         return Response(
@@ -165,6 +171,98 @@ def upload_expenses(request):
             {"error": f"Error processing file: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@api_view(["GET"])
+def month_history(request):
+    """KPI rows already saved for this session, one per month."""
+    store = _get_store(request)
+    if not store.month_history and store.sales_df_pickle and store.expenses_df_pickle:
+        snapshot_uploaded(store)
+        store.save()
+    return Response(history_payload(store))
+
+
+@api_view(["POST"])
+def import_month_archive(request):
+    """Load docs/2026 ventas + gastos into the session and replace the month table."""
+    root = archive_root()
+    if root is None:
+        return Response(
+            {"error": "No está la carpeta docs/2026 con ventas y gastos."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    try:
+        sales, expenses = load_fudo_archive(root)
+        months = sales_months_of(sales)
+        products = get_unique_products(sales)
+        rows = monthly_performance(sales, expenses)
+        store = _get_store(request)
+        store.sales_df_pickle = _dump_df(sales)
+        store.expenses_df_pickle = _dump_df(expenses)
+        store.products = products
+        store.sales_months = months
+        replace_history(store, rows)
+        store.save()
+        return Response(
+            {
+                "message": "Historial cargado",
+                "months": months,
+                "products": products,
+                "total_rows": len(sales),
+                "history": history_payload(store)["months"],
+                "default_sueldos": DEFAULT_MONTH_SUELDOS,
+            }
+        )
+    except WorkbookError as exc:
+        return Response(exc.payload, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as exc:
+        return Response(
+            {"error": f"No se pudo cargar el historial: {exc}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(["POST"])
+def set_history_sueldos(request):
+    """Replace the payroll used to evaluate one saved month."""
+    month = str(request.data.get("month") or "")
+    try:
+        if request.data.get("reset") is True:
+            clear_month_sueldos(month)
+            sueldos = None
+        else:
+            sueldos = save_month_sueldos(month, request.data.get("sueldos"))
+    except SueldosError as exc:
+        return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+    payload = history_payload(_get_store(request))
+    if sueldos is None:
+        match = next((row for row in payload["months"] if row["month"] == month), None)
+        sueldos = match["sueldos_usados"] if match else DEFAULT_MONTH_SUELDOS
+    payload["month"] = month
+    payload["sueldos"] = sueldos
+    return Response(payload)
+
+
+@api_view(["POST"])
+def data_chat(request):
+    """Answer a question about the loaded months. The model searches a local SQLite."""
+    if not (settings.OPENROUTER_API_KEY or "").strip():
+        return Response(
+            {
+                "error": (
+                    "Falta OPENROUTER_API_KEY en el entorno. "
+                    "El chat queda apagado hasta que la agregues."
+                )
+            },
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    try:
+        path = ensure_chat_database(_get_store(request))
+        payload = ask(path, request.data.get("messages"))
+    except ChatError as exc:
+        return Response({"error": str(exc)}, status=exc.status_code)
+    return Response(payload)
 
 
 @api_view(["GET"])

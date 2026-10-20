@@ -17,6 +17,8 @@ class UserSessionData(models.Model):
     expenses_df_pickle = models.BinaryField(null=True, blank=True)
     products = models.JSONField(default=list)
     sales_months = models.JSONField(default=list)
+    # KPI row per month. Survives a later sales upload so "meses anteriores" stays.
+    month_history = models.JSONField(default=dict, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -43,3 +45,17 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return self.email or self.google_id
+
+
+class MonthAssumption(models.Model):
+    """Payroll used to evaluate one month. Survives the 24h upload session."""
+
+    month = models.CharField(max_length=7, unique=True)
+    sueldos = models.PositiveIntegerField()
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "simulator_month_assumption"
+
+    def __str__(self):
+        return f"{self.month}: {self.sueldos}"

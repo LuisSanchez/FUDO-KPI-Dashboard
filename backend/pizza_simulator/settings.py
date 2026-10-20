@@ -158,3 +158,8 @@ GOOGLE_CLIENT_ID = env.str("GOOGLE_CLIENT_ID", default="")
 GOOGLE_CLIENT_SECRET = env.str("GOOGLE_CLIENT_SECRET", default="")
 # When True, API endpoints (except auth/config) require an authenticated user.
 REQUIRE_AUTH = env.bool("REQUIRE_AUTH", default=False)
+
+# Chat over the local numbers. The key stays server-side. Empty disables the endpoint.
+OPENROUTER_API_KEY = env.str("OPENROUTER_API_KEY", default="")
+OPENROUTER_MODEL = env.str("OPENROUTER_MODEL", default="x-ai/grok-4.7")
+OPENROUTER_BASE_URL = env.str("OPENROUTER_BASE_URL", default="https://openrouter.ai/api/v1")

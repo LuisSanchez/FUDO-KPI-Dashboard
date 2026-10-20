@@ -36,4 +36,5 @@ def clear_store(store: UserSessionData) -> None:
     store.expenses_df_pickle = None
     store.products = []
     store.sales_months = []
+    store.month_history = {}
     store.save()

@@ -4,7 +4,7 @@ Implementation lives in ``simulator.processing.engine`` for clearer SoC;
 this module re-exports the historical API so callers need not change.
 """
 
-from simulator.processing.constants import UBER_COMMISSION_RATE
+from simulator.processing.constants import UBER_COLLECTED_COMMISSION_RATE, UBER_COMMISSION_RATE
 from simulator.processing.engine import (  # noqa: F401
     add_simulated_sales,
     get_chart_data,
@@ -25,6 +25,7 @@ from simulator.processing.engine import (  # noqa: F401
 
 __all__ = [
     "UBER_COMMISSION_RATE",
+    "UBER_COLLECTED_COMMISSION_RATE",
     "sales_clean_up_data",
     "kpi_calculations",
     "validate_sales_columns",

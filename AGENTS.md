@@ -58,14 +58,17 @@ omp/
 │       ├── views.py          # HTTP/API only — thin
 │       ├── auth_views.py     # Google OAuth (optional)
 │       ├── urls.py
-│       ├── models.py         # UserSessionData, UserProfile
+│       ├── models.py         # UserSessionData, UserProfile, MonthAssumption
 │       ├── report.py         # PDF (reportlab)
 │       ├── data_processing.py# PUBLIC FACADE — re-exports engine API
 │       ├── processing/
-│       │   ├── constants.py  # UBER_COMMISSION_RATE = 0.25
-│       │   └── engine.py     # ALL business logic lives here
+│       │   ├── constants.py  # UBER_COMMISSION_RATE = 0.25; collected 0.26
+│       │   ├── engine.py     # Live KPI engine
+│       │   ├── monthly.py    # Month rows from FUDO workbooks
+│       │   └── uber_statements.py  # Page 1 of Uber monthly PDFs
 │       ├── services/
-│       │   └── session_store.py  # pickle load/dump / clear store
+│       │   ├── session_store.py  # pickle load/dump / clear store
+│       │   └── month_history.py  # Saved months; adjustments are not written back
 │       └── tests/            # unit + API tests
 └── frontend/
     ├── package.json          # test:ci, lint, coverageThreshold
@@ -105,15 +108,16 @@ CRA setupProxy  ──►  Django DRF (:8000)
 | HTTP | `simulator/views.py`, `auth_views.py` |
 | Session DataFrames | `simulator/services/session_store.py` |
 | Business logic | `simulator/processing/engine.py` (+ `constants.py`) |
+| Month history | `processing/monthly.py`, `processing/uber_statements.py`, `services/month_history.py` |
 | Stable import path | `simulator/data_processing.py` (re-exports — keep for callers) |
 | PDF | `simulator/report.py` |
 | FE HTTP | `frontend/src/api/client.js` |
 | FE upload/KPI state | `hooks/useSimulatorData.js` |
 | FE auth | `hooks/useAuth.js` + `components/GoogleSignIn.js` |
 
-When adding features: put logic in **engine**, wire thin endpoints in **views**, reuse **data_processing** imports if existing code does. Avoid growing `views.py` with pandas.
+When adding features: put logic in **engine** (live KPIs) or **monthly** (history), wire thin endpoints in **views**, reuse **data_processing** imports if existing code does. Avoid growing `views.py` with pandas.
 
-Verified against the tree: `processing/` is `engine.py` + `constants.py` only. `data_processing.py` is a re-export facade. Views load Excel and delegate. Do not look for a split `uber.py` / `cleaning.py` — those modules are gone. `pages/DashboardPage.js` re-exports `App.js`.
+Verified against the tree: live KPIs stay in `processing/engine.py`. Month history is `processing/monthly.py` plus `services/month_history.py`. Uber settlement PDFs are read by `processing/uber_statements.py` (pdfplumber, page 1 only). `data_processing.py` is still the re-export facade for the live engine. Do not look for a split `uber.py` / `cleaning.py` — those modules are gone. `pages/DashboardPage.js` re-exports `App.js`.
 
 ---
 
@@ -176,6 +180,10 @@ cd e2e && npm i && npx playwright install chromium && npm test
 | POST | `upload-expenses/` | Sheet `Gastos`, `skiprows=3`; 422 `date_mismatch` if months don’t overlap sales |
 | GET | `products/` | From session |
 | POST | `calculate/` | KPIs; body `producto`, `month` |
+| GET | `history/` | Saved months. Payroll assumption and Uber PDF settlement are applied on the way out. `default_sueldos` is 1_300_000. |
+| POST | `history/sueldos/` | Body `month` (`YYYY-MM`) and `sueldos` (replaces file payroll, 0 allowed) or `reset: true`. Stored on `MonthAssumption`, not the 24h session. |
+| POST | `history/import-archive/` | Load `docs/2026` ventas + gastos into the session. Stored rows stay raw. |
+| POST | `chat/` | Questions about the loaded numbers. OpenRouter tool loop over a local SQLite. 503 without `OPENROUTER_API_KEY`. |
 | GET | `data/sales/` | Product aggregation |
 | GET | `data/expenses/` | Expense rows |
 | GET | `data/charts/` | Charts + `channel_split` + `channel_by_category` |
@@ -207,6 +215,8 @@ All numpy/pandas scalars returned from views must be cast to Python `int` / `flo
 5. **Price simulator** — `price_increase_clp` applies only to **Especialidades**.
 6. **Session** — re-uploading sales clears expenses; expenses months must overlap sales months.
 7. **Proxy** — never set `axios.defaults.baseURL` in FE dev; use relative `/api` + `withCredentials`.
+8. **Month history is a separate path.** It reads `Descuentos` and estimates Uber cash at 26% of what the customer paid. `DEFAULT_MONTH_SUELDOS` (1_300_000) replaces the file payroll for the month being evaluated; it is not added on top. Overrides live in `MonthAssumption`. Do not write that adjusted EBITDA back into `month_history`, and do not copy this formula into the live KPI engine.
+9. **Uber settlement on the history screen** — show the 26% FUDO estimate beside the PDF (depósito, tasa, anuncios, ajustes). The P&L commission is the PDF “Tasas de servicio” line ÷ 1.19 when a statement exists (IVA on the fee is a credit, not a cost). The bank deposit is not the P&L cost. Do not change `UBER_COMMISSION_RATE`.
 
 Formulas and scoring details are also summarized in `README.md` (promotion score, Uber break-even units/day).
 
@@ -239,7 +249,7 @@ Also not applied:
 - `pedidos_ya` is treated as in-store (commission 0). `walker` / caja users too.
 - Zero-cost imputation looks for `Categoría == "Extra"`. Live files use `Extras`, so the mask does not hit current exports. `Arma Tu Pizza` children are intentionally left at zero cost. A hardcoded Mar-2026 patch fills `Pizza Napoli` and `Pizza Veggie G` only.
 
-Do not “fix” any of this silently. New monthly exports should be checked against `Pagos` and `Descuentos` before changing the rate or the base.
+Do not “fix” any of this silently. New monthly exports should be checked against `Pagos` and `Descuentos` before changing the rate or the base. The history screen already reads `Descuentos`; that does not authorize the same change in `engine.py`.
 
 ---
 
@@ -293,6 +303,8 @@ Do not “fix” any of this silently. New monthly exports should be checked aga
 | New KPI / cleaning rule | `processing/engine.py` + unit test |
 | New API endpoint | `views.py` + `urls.py` + API test |
 | Session storage | `services/session_store.py` |
+| Month history / payroll assumption | `processing/monthly.py`, `services/month_history.py`, `components/MonthHistory.js` |
+| Questions about the data | `services/analytics_db.py`, `services/openrouter_chat.py`, `components/DataChat.js` |
 | PDF layout | `report.py` |
 | FE API call | `api/client.js` |
 | Upload/month/KPI state | `hooks/useSimulatorData.js` |
@@ -313,6 +325,9 @@ Do not “fix” any of this silently. New monthly exports should be checked aga
 | `GOOGLE_OAUTH_ENABLED` | false | Enable GIS login |
 | `GOOGLE_CLIENT_ID` | empty | OAuth client |
 | `REQUIRE_AUTH` | false | Hard-gate APIs (use carefully) |
+| `OPENROUTER_API_KEY` | empty | Chat. Empty returns 503. Server-side only |
+| `OPENROUTER_MODEL` | `x-ai/grok-4.7` | OpenRouter model for the chat |
+| `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | OpenRouter API root |
 
 Frontend Docker: `REACT_APP_BACKEND_URL=http://backend:8000` for proxy target.
 

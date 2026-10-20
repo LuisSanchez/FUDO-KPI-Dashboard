@@ -7,6 +7,10 @@ import api, {
   uploadExpenses,
   calculateKpis,
   resetSession,
+  fetchMonthHistory,
+  importMonthArchive,
+  saveMonthSueldos,
+  askDataChat,
 } from "../client";
 
 jest.mock("axios", () => {
@@ -73,6 +77,42 @@ test("calculateKpis POSTs payload", async () => {
   axios.post.mockResolvedValue({ data: { ebitda: {} } });
   await calculateKpis({ month: "2026-03" });
   expect(axios.post).toHaveBeenCalledWith("/api/calculate/", { month: "2026-03" });
+});
+
+test("fetchMonthHistory GETs history", async () => {
+  axios.get.mockResolvedValue({ data: { months: [] } });
+  const data = await fetchMonthHistory();
+  expect(axios.get).toHaveBeenCalledWith("/api/history/");
+  expect(data.months).toEqual([]);
+});
+
+test("importMonthArchive POSTs the archive import", async () => {
+  axios.post.mockResolvedValue({ data: { months: ["2026-09"] } });
+  const data = await importMonthArchive();
+  expect(axios.post).toHaveBeenCalledWith("/api/history/import-archive/");
+  expect(data.months).toEqual(["2026-09"]);
+});
+
+test("saveMonthSueldos POSTs the payroll override", async () => {
+  axios.post.mockResolvedValue({ data: { sueldos: 1300000 } });
+  const data = await saveMonthSueldos({ month: "2026-09", sueldos: 1300000 });
+  expect(axios.post).toHaveBeenCalledWith("/api/history/sueldos/", {
+    month: "2026-09",
+    sueldos: 1300000,
+  });
+  expect(data.sueldos).toBe(1300000);
+});
+
+test("askDataChat POSTs the conversation", async () => {
+  axios.post.mockResolvedValue({ data: { reply: "Listo", consultas: [] } });
+  const messages = [{ role: "user", content: "¿y septiembre?" }];
+  const data = await askDataChat(messages);
+  expect(axios.post).toHaveBeenCalledWith(
+    "/api/chat/",
+    { messages },
+    { timeout: 180000 },
+  );
+  expect(data.reply).toBe("Listo");
 });
 
 test("resetSession POSTs reset", async () => {

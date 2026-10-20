@@ -151,10 +151,10 @@ const DashboardKPIBar = ({ results }) => {
     {
       label: "Margen Uber",
       value: `${dash.uber_margin_pct.toFixed(1)}%`,
-      sub: "s/IVA · neto comisión 25%",
+      sub: "s/IVA · modelo 25% de la carta",
       valueColor: marginColor(dash.uber_margin_pct),
       tooltip:
-        "Margen neto del canal Uber Eats: (Ingreso − Ingredientes − Comisión 25%) / Ingreso, sin IVA",
+        "Margen del modelo: (Ingreso de carta − Ingredientes − 25% de la carta) / Ingreso, sin IVA. No es el depósito de Uber. El neto estimado está en Meses anteriores.",
     },
   ];
 

@@ -25,6 +25,7 @@ import TravelExploreIcon from "@mui/icons-material/TravelExplore";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
+import QuestionAnswerIcon from "@mui/icons-material/QuestionAnswer";
 
 const AppNavBar = ({
   bothUploaded,
@@ -39,6 +40,7 @@ const AppNavBar = ({
   onOpenHelp,
   onStartTour,
   onReset,
+  onOpenChat,
   colorMode,
   onToggleMode,
 }) => {
@@ -254,6 +256,17 @@ const AppNavBar = ({
             </Menu>
           </Box>
         )}
+
+        <Tooltip title="Preguntar por los números">
+          <IconButton
+            aria-label="Preguntar por los números"
+            onClick={onOpenChat}
+            size="small"
+            sx={{ color: "primary.main" }}
+          >
+            <QuestionAnswerIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
 
         {/* Light / dark toggle */}
         <Tooltip title={colorMode === "dark" ? "Modo claro" : "Modo oscuro"}>

@@ -40,3 +40,4 @@ def test_get_or_create_and_clear(api_client):
     assert store.sales_df_pickle is None
     assert store.products == []
     assert store.sales_months == []
+    assert store.month_history == {}

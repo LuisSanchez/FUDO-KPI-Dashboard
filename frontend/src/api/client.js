@@ -47,4 +47,24 @@ export async function resetSession() {
   return data;
 }
 
+export async function fetchMonthHistory() {
+  const { data } = await api.get("/api/history/");
+  return data;
+}
+
+export async function importMonthArchive() {
+  const { data } = await api.post("/api/history/import-archive/");
+  return data;
+}
+
+export async function saveMonthSueldos(payload) {
+  const { data } = await api.post("/api/history/sueldos/", payload);
+  return data;
+}
+
+export async function askDataChat(messages) {
+  const { data } = await api.post("/api/chat/", { messages }, { timeout: 180000 });
+  return data;
+}
+
 export default api;
