@@ -4,10 +4,10 @@ import MonthHistory from "../MonthHistory";
 import { fetchMonthHistory, saveMonthSueldos } from "../../api/client";
 import { CLP } from "../../utils/formatters";
 
-jest.mock("../../api/client", () => ({
-  fetchMonthHistory: jest.fn(),
-  importMonthArchive: jest.fn(),
-  saveMonthSueldos: jest.fn(),
+vi.mock("../../api/client", () => ({
+  fetchMonthHistory: vi.fn(),
+  importMonthArchive: vi.fn(),
+  saveMonthSueldos: vi.fn(),
 }));
 
 const september = {

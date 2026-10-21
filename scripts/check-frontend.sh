@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Frontend unit tests (Jest) with coverage threshold ≥75% (package.json jest.coverageThreshold).
+# Frontend unit tests (Vitest) with coverage thresholds in vite.config.js.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT/frontend"

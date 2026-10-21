@@ -11,22 +11,30 @@ import api, {
   importMonthArchive,
   saveMonthSueldos,
   askDataChat,
+  fetchAiSettings,
+  saveAiSettings,
+  fetchOllamaModels,
+  setClerkTokenGetter,
 } from "../client";
 
-jest.mock("axios", () => {
+import axios from "axios";
+
+vi.mock("axios", () => {
   const mock = {
-    create: jest.fn(() => mock),
-    get: jest.fn(),
-    post: jest.fn(),
+    create: vi.fn(() => mock),
+    get: vi.fn(),
+    post: vi.fn(),
+    put: vi.fn(),
     defaults: {},
+    interceptors: { request: { use: vi.fn() } },
   };
-  return mock;
+  return { default: mock };
 });
 
-const axios = require("axios");
+const attachClerkToken = axios.interceptors.request.use.mock.calls[0][0];
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
 
 test("fetchAuthConfig GETs config endpoint", async () => {
@@ -123,4 +131,48 @@ test("resetSession POSTs reset", async () => {
 
 test("default export is axios instance", () => {
   expect(api).toBeTruthy();
+});
+
+test("fetchAiSettings and saveAiSettings use the settings endpoint", async () => {
+  axios.get.mockResolvedValue({ data: { provider: "openrouter" } });
+  axios.put.mockResolvedValue({ data: { provider: "ollama" } });
+  const current = await fetchAiSettings();
+  const saved = await saveAiSettings({ provider: "ollama" });
+  expect(axios.get).toHaveBeenCalledWith("/api/settings/ai/");
+  expect(axios.put).toHaveBeenCalledWith("/api/settings/ai/", { provider: "ollama" });
+  expect(current.provider).toBe("openrouter");
+  expect(saved.provider).toBe("ollama");
+});
+
+test("fetchOllamaModels passes the typed address", async () => {
+  axios.get.mockResolvedValue({ data: { models: ["llama3.1"] } });
+  const listed = await fetchOllamaModels("http://127.0.0.1:11434");
+  expect(axios.get).toHaveBeenCalledWith("/api/settings/ai/ollama-models/", {
+    params: { base_url: "http://127.0.0.1:11434" },
+  });
+  expect(listed.models).toEqual(["llama3.1"]);
+  await fetchOllamaModels("");
+  expect(axios.get).toHaveBeenLastCalledWith("/api/settings/ai/ollama-models/", {
+    params: {},
+  });
+});
+
+test("the Clerk token is attached only when the getter returns one", async () => {
+  setClerkTokenGetter(async () => "tok");
+  const signed = await attachClerkToken({});
+  expect(signed.headers.Authorization).toBe("Bearer tok");
+
+  setClerkTokenGetter(async () => "");
+  const blank = await attachClerkToken({ headers: {} });
+  expect(blank.headers.Authorization).toBeUndefined();
+
+  setClerkTokenGetter(async () => {
+    throw new Error("clerk");
+  });
+  const failed = await attachClerkToken({ headers: {} });
+  expect(failed.headers.Authorization).toBeUndefined();
+
+  setClerkTokenGetter(null);
+  const signedOut = await attachClerkToken({ headers: { Authorization: "stale" } });
+  expect(signedOut.headers.Authorization).toBe("stale");
 });

@@ -2,17 +2,20 @@ import { renderHook, act } from "@testing-library/react";
 import useDownloadPdf from "../useDownloadPdf";
 import axios from "axios";
 
-jest.mock("axios");
+vi.mock("axios", () => {
+  const mock = { get: vi.fn() };
+  return { default: mock };
+});
 
 beforeEach(() => {
-  jest.clearAllMocks();
-  global.URL.createObjectURL = jest.fn(() => "blob:url");
-  global.URL.revokeObjectURL = jest.fn();
+  vi.clearAllMocks();
+  global.URL.createObjectURL = vi.fn(() => "blob:url");
+  global.URL.revokeObjectURL = vi.fn();
 });
 
 test("downloads PDF with specific month filename", async () => {
   axios.get.mockResolvedValue({ data: new Blob(["%PDF"]) });
-  const onError = jest.fn();
+  const onError = vi.fn();
   const { result } = renderHook(() =>
     useDownloadPdf("2026-03", onError, ["2026-03"]),
   );
@@ -30,7 +33,7 @@ test("downloads PDF with specific month filename", async () => {
 test("range filename when multiple months and all selected", async () => {
   axios.get.mockResolvedValue({ data: new Blob(["%PDF"]) });
   const { result } = renderHook(() =>
-    useDownloadPdf("all", jest.fn(), ["2026-01", "2026-03"]),
+    useDownloadPdf("all", vi.fn(), ["2026-01", "2026-03"]),
   );
   await act(async () => {
     await result.current.handleDownloadPdf();
@@ -43,7 +46,7 @@ test("range filename when multiple months and all selected", async () => {
 
 test("calls onError on failure", async () => {
   axios.get.mockRejectedValue(new Error("fail"));
-  const onError = jest.fn();
+  const onError = vi.fn();
   const { result } = renderHook(() => useDownloadPdf("2026-03", onError, []));
   await act(async () => {
     await result.current.handleDownloadPdf();

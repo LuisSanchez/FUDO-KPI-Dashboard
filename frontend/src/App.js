@@ -15,6 +15,7 @@ import EbitdaGauge from "./components/EbitdaGauge";
 import SimCard from "./components/SimCard";
 import DashboardKPIBar from "./components/DashboardKPIBar";
 import DataChat from "./components/DataChat";
+import AiSettingsDialog from "./components/AiSettingsDialog";
 import MonthHistory from "./components/MonthHistory";
 import SalesTableModal from "./components/SalesTableModal";
 import ExpensesTableModal from "./components/ExpensesTableModal";
@@ -54,8 +55,10 @@ import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 
 // ── Main App ──────────────────────────────────────────────────────────────────
 
-export default function App() {
-  const { config: authConfig, user: authUser, signInWithCredential, signOut } = useAuth();
+export default function App({ clerkEnabled = false, userSlot = null }) {
+  const { config: authConfig, user: authUser, canManageSettings, signInWithCredential, signOut } =
+    useAuth();
+  const showSettings = canManageSettings;
   const [colorMode, setColorMode] = useState(() => {
     const stored = localStorage.getItem("colorMode");
     const mode = stored
@@ -93,6 +96,7 @@ export default function App() {
 
   const [helpOpen, setHelpOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [salesTableOpen, setSalesTableOpen] = useState(false);
   const [expensesTableOpen, setExpensesTableOpen] = useState(false);
   const [pricesTableOpen, setPricesTableOpen] = useState(false);
@@ -320,10 +324,18 @@ export default function App() {
           onStartTour={startTour}
           onReset={handleReset}
           onOpenChat={() => setChatOpen(true)}
+          showSettings={showSettings}
+          onOpenSettings={() => setSettingsOpen(true)}
+          userSlot={userSlot}
           colorMode={colorMode}
           onToggleMode={toggleColorMode}
         />
         <DataChat open={chatOpen} onClose={() => setChatOpen(false)} />
+        <AiSettingsDialog
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          clerkEnabled={clerkEnabled}
+        />
 
         <Container
           maxWidth={false}

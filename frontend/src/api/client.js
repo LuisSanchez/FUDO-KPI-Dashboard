@@ -1,7 +1,30 @@
 import axios from "axios";
 
-// Do NOT set axios.defaults.baseURL in development — CRA proxy needs relative /api.
+// Relative /api. Vite proxies it in dev. Do not set axios.defaults.baseURL.
 const api = axios.create({ withCredentials: true });
+
+let tokenGetter = null;
+
+export function setClerkTokenGetter(getter) {
+  tokenGetter = typeof getter === "function" ? getter : null;
+}
+
+async function attachClerkToken(config) {
+  if (!tokenGetter) return config;
+  try {
+    const token = await tokenGetter();
+    if (token) {
+      config.headers = config.headers || {};
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  } catch {
+    // Unsigned request. The API answers 401.
+  }
+  return config;
+}
+
+api.interceptors.request.use(attachClerkToken);
+axios.interceptors.request.use(attachClerkToken);
 
 export async function fetchAuthConfig() {
   const { data } = await api.get("/api/auth/config/");
@@ -64,6 +87,23 @@ export async function saveMonthSueldos(payload) {
 
 export async function askDataChat(messages) {
   const { data } = await api.post("/api/chat/", { messages }, { timeout: 180000 });
+  return data;
+}
+
+export async function fetchAiSettings() {
+  const { data } = await api.get("/api/settings/ai/");
+  return data;
+}
+
+export async function saveAiSettings(payload) {
+  const { data } = await api.put("/api/settings/ai/", payload);
+  return data;
+}
+
+export async function fetchOllamaModels(baseUrl) {
+  const { data } = await api.get("/api/settings/ai/ollama-models/", {
+    params: baseUrl ? { base_url: baseUrl } : {},
+  });
   return data;
 }
 

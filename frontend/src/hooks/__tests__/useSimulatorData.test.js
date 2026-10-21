@@ -2,10 +2,10 @@ import { renderHook, act } from "@testing-library/react";
 import useSimulatorData from "../useSimulatorData";
 import * as client from "../../api/client";
 
-jest.mock("../../api/client");
+vi.mock("../../api/client");
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
 
 test("handleSalesUpload sets months and clears KPIs", async () => {

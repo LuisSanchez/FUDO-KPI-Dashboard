@@ -4,6 +4,7 @@ import { fetchAuthConfig, fetchMe, loginWithGoogle, logout as apiLogout } from "
 export default function useAuth() {
   const [config, setConfig] = useState({ oauth_enabled: false, client_id: "", require_auth: false });
   const [user, setUser] = useState(null);
+  const [canManageSettings, setCanManageSettings] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
@@ -11,8 +12,10 @@ export default function useAuth() {
       const [cfg, me] = await Promise.all([fetchAuthConfig(), fetchMe()]);
       setConfig(cfg);
       setUser(me.authenticated ? me : null);
+      setCanManageSettings(me.can_manage_settings === true);
     } catch {
       setUser(null);
+      setCanManageSettings(false);
     } finally {
       setLoading(false);
     }
@@ -33,5 +36,5 @@ export default function useAuth() {
     setUser(null);
   };
 
-  return { config, user, loading, refresh, signInWithCredential, signOut };
+  return { config, user, canManageSettings, loading, refresh, signInWithCredential, signOut };
 }

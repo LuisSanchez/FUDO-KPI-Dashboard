@@ -10,6 +10,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from .models import UserProfile
+from .services.clerk_auth import can_manage_settings
 from .services.session_store import get_or_create_store
 
 
@@ -33,8 +34,9 @@ def auth_config(request):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def auth_me(request):
+    allowed = can_manage_settings(request)
     if not request.user.is_authenticated:
-        return Response({"authenticated": False})
+        return Response({"authenticated": False, "can_manage_settings": allowed})
     profile = getattr(request.user, "profile", None)
     return Response(
         {
@@ -42,6 +44,7 @@ def auth_me(request):
             "email": request.user.email,
             "display_name": (profile.display_name if profile else request.user.get_username()),
             "avatar_url": profile.avatar_url if profile else "",
+            "can_manage_settings": allowed,
         }
     )
 

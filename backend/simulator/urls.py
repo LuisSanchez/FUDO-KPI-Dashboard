@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import auth_views, views
+from . import ai_views, auth_views, views
 
 urlpatterns = [
     path("auth/config/", auth_views.auth_config, name="auth_config"),
@@ -26,4 +26,6 @@ urlpatterns = [
     path("history/sueldos/", views.set_history_sueldos, name="set_history_sueldos"),
     path("history/import-archive/", views.import_month_archive, name="import_month_archive"),
     path("chat/", views.data_chat, name="data_chat"),
+    path("settings/ai/", ai_views.ai_settings, name="ai_settings"),
+    path("settings/ai/ollama-models/", ai_views.ollama_models, name="ollama_models"),
 ]

@@ -59,3 +59,19 @@ class MonthAssumption(models.Model):
 
     def __str__(self):
         return f"{self.month}: {self.sueldos}"
+
+
+class AiSettings(models.Model):
+    """Which model answers the data chat. One row, chosen by the super admin."""
+
+    provider = models.CharField(max_length=20, default="openrouter")
+    openrouter_model = models.CharField(max_length=120, blank=True, default="")
+    ollama_model = models.CharField(max_length=120, blank=True, default="")
+    ollama_base_url = models.CharField(max_length=300, blank=True, default="")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "simulator_ai_settings"
+
+    def __str__(self):
+        return self.provider

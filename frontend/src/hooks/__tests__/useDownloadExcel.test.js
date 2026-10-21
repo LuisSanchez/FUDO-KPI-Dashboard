@@ -2,18 +2,21 @@ import { renderHook, act } from "@testing-library/react";
 import useDownloadExcel from "../useDownloadExcel";
 import axios from "axios";
 
-jest.mock("axios");
+vi.mock("axios", () => {
+  const mock = { get: vi.fn() };
+  return { default: mock };
+});
 
 beforeEach(() => {
-  jest.clearAllMocks();
-  global.URL.createObjectURL = jest.fn(() => "blob:url");
-  global.URL.revokeObjectURL = jest.fn();
+  vi.clearAllMocks();
+  global.URL.createObjectURL = vi.fn(() => "blob:url");
+  global.URL.revokeObjectURL = vi.fn();
 });
 
 test("downloadExcel requests report with categoria and month", async () => {
   axios.get.mockResolvedValue({ data: new Blob(["xlsx"]) });
   const { result } = renderHook(() =>
-    useDownloadExcel("2026-03", jest.fn()),
+    useDownloadExcel("2026-03", vi.fn()),
   );
   await act(async () => {
     await result.current.downloadExcel("Especialidades");
@@ -28,7 +31,7 @@ test("downloadExcel requests report with categoria and month", async () => {
 
 test("downloadExcel calls onError on failure", async () => {
   axios.get.mockRejectedValue(new Error("x"));
-  const onError = jest.fn();
+  const onError = vi.fn();
   const { result } = renderHook(() => useDownloadExcel("all", onError));
   await act(async () => {
     await result.current.downloadExcel("Extras");

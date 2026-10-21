@@ -2,21 +2,21 @@ import { renderHook, act } from "@testing-library/react";
 import { useTour } from "../useTour";
 import { driver } from "driver.js";
 
-jest.mock("driver.js", () => {
-  const instance = { drive: jest.fn(), destroy: jest.fn() };
+vi.mock("driver.js", () => {
+  const instance = { drive: vi.fn(), destroy: vi.fn() };
   return {
     __esModule: true,
-    driver: jest.fn(() => instance),
+    driver: vi.fn(() => instance),
   };
 });
 
-jest.mock("driver.js/dist/driver.css", () => ({}));
+vi.mock("driver.js/dist/driver.css", () => ({}));
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
   localStorage.clear();
   // re-bind instance methods after clearAllMocks
-  const instance = { drive: jest.fn(), destroy: jest.fn() };
+  const instance = { drive: vi.fn(), destroy: vi.fn() };
   driver.mockImplementation(() => instance);
 });
 

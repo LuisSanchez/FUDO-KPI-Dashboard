@@ -50,19 +50,35 @@ class ChatError(Exception):
         self.status_code = status_code
 
 
-def ask(db_path: Path, messages, *, transport=None) -> dict:
-    """Run the tool loop and return the Spanish answer plus the searches made."""
-    key = getattr(settings, "OPENROUTER_API_KEY", "") or ""
-    if not key.strip():
+def ask(
+    db_path: Path,
+    messages,
+    *,
+    transport=None,
+    model=None,
+    base_url=None,
+    api_key=None,
+    allow_without_key=False,
+) -> dict:
+    """Run the tool loop and return the Spanish answer plus the searches made.
+
+    OpenRouter is the default. Ollama passes its own transport, model and base
+    URL and sets allow_without_key so a missing OpenRouter key does not block it.
+    """
+    if api_key is None:
+        key = getattr(settings, "OPENROUTER_API_KEY", "") or ""
+    else:
+        key = api_key
+    if not allow_without_key and not str(key).strip():
         raise ChatError(
             "Falta OPENROUTER_API_KEY en el entorno. El chat queda apagado hasta que la agregues.",
             503,
         )
     conversation = [_system_message(), *normalize_messages(messages)]
-    model = getattr(settings, "OPENROUTER_MODEL", "") or "x-ai/grok-4.7"
-    base = (getattr(settings, "OPENROUTER_BASE_URL", "") or "https://openrouter.ai/api/v1").rstrip(
-        "/"
-    )
+    model = (model or _openrouter_model()).strip()
+    base = (
+        base_url or getattr(settings, "OPENROUTER_BASE_URL", "") or "https://openrouter.ai/api/v1"
+    ).rstrip("/")
     send = transport or _post
     searches = []
     for _ in range(_MAX_ROUNDS):
@@ -98,6 +114,16 @@ def ask(db_path: Path, messages, *, transport=None) -> dict:
                 }
             )
     raise ChatError("La consulta quedó a medias. Prueba con una pregunta más acotada.")
+
+
+def _openrouter_model() -> str:
+    """Saved choice in Configuración, then the env default. A missing table stays on the env."""
+    try:
+        from simulator.services.ai_settings import effective_openrouter_model
+
+        return effective_openrouter_model()
+    except Exception:
+        return getattr(settings, "OPENROUTER_MODEL", "") or "x-ai/grok-4.7"
 
 
 def normalize_messages(messages) -> list[dict]:

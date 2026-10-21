@@ -29,6 +29,7 @@ from .processing.monthly import (
     read_sales_workbook,
     sales_months_of,
 )
+from .services.ai_settings import chat_provider
 from .services.analytics_db import ensure_chat_database
 from .services.month_history import (
     SueldosError,
@@ -40,6 +41,7 @@ from .services.month_history import (
     save_month_sueldos,
     snapshot_uploaded,
 )
+from .services.ollama_chat import ask_ollama
 from .services.openrouter_chat import ChatError, ask
 from .services.session_store import (
     clear_store,
@@ -247,7 +249,8 @@ def set_history_sueldos(request):
 @api_view(["POST"])
 def data_chat(request):
     """Answer a question about the loaded months. The model searches a local SQLite."""
-    if not (settings.OPENROUTER_API_KEY or "").strip():
+    provider = chat_provider()
+    if provider != "ollama" and not (settings.OPENROUTER_API_KEY or "").strip():
         return Response(
             {
                 "error": (
@@ -259,7 +262,11 @@ def data_chat(request):
         )
     try:
         path = ensure_chat_database(_get_store(request))
-        payload = ask(path, request.data.get("messages"))
+        messages = request.data.get("messages")
+        if provider == "ollama":
+            payload = ask_ollama(path, messages)
+        else:
+            payload = ask(path, messages)
     except ChatError as exc:
         return Response({"error": str(exc)}, status=exc.status_code)
     return Response(payload)

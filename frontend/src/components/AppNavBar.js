@@ -26,6 +26,7 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
 import QuestionAnswerIcon from "@mui/icons-material/QuestionAnswer";
+import SettingsIcon from "@mui/icons-material/Settings";
 
 const AppNavBar = ({
   bothUploaded,
@@ -41,6 +42,9 @@ const AppNavBar = ({
   onStartTour,
   onReset,
   onOpenChat,
+  showSettings = false,
+  onOpenSettings,
+  userSlot = null,
   colorMode,
   onToggleMode,
 }) => {
@@ -257,6 +261,19 @@ const AppNavBar = ({
           </Box>
         )}
 
+        {showSettings && (
+          <Tooltip title="Configuración">
+            <IconButton
+              aria-label="Configuración"
+              onClick={onOpenSettings}
+              size="small"
+              sx={{ color: "text.secondary" }}
+            >
+              <SettingsIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+
         <Tooltip title="Preguntar por los números">
           <IconButton
             aria-label="Preguntar por los números"
@@ -314,6 +331,9 @@ const AppNavBar = ({
             </IconButton>
           </Tooltip>
         )}
+        {userSlot ? (
+          <Box sx={{ display: "flex", alignItems: "center", ml: 0.5 }}>{userSlot}</Box>
+        ) : null}
       </Toolbar>
     </AppBar>
   );

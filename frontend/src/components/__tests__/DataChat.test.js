@@ -3,8 +3,8 @@ import userEvent from "@testing-library/user-event";
 import DataChat from "../DataChat";
 import { askDataChat } from "../../api/client";
 
-jest.mock("../../api/client", () => ({
-  askDataChat: jest.fn(),
+vi.mock("../../api/client", () => ({
+  askDataChat: vi.fn(),
 }));
 
 beforeEach(() => {

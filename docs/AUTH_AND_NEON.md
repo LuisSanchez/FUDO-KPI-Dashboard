@@ -5,8 +5,9 @@ Optional features. Agent overview: [AGENTS.md](../AGENTS.md).
 ## Defaults (no env = current behavior)
 
 - **SQLite** at `backend/db.sqlite3`
-- **Google OAuth off** (`GOOGLE_OAUTH_ENABLED=False`) → `/api/auth/google/` returns **503**
-- Session upload flow works anonymously
+- **Clerk off** until `VITE_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` are set (see `env.sample`). The dashboard stays open on a single machine. With both keys, `/api/` requires a Clerk session JWT. `SUPER_ADMIN_EMAIL` is the only account that can change AI settings; the browser never receives that address.
+- **Google OAuth (GIS) off** (`GOOGLE_OAUTH_ENABLED=False`) → `/api/auth/google/` returns **503**. The visible login is Clerk, not this GIS flow.
+- Session upload flow works anonymously while Clerk is off
 
 ## Enable Neon Postgres
 

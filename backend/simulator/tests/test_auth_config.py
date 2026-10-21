@@ -21,3 +21,4 @@ def test_auth_me_anonymous(api_client):
     resp = api_client.get("/api/auth/me/")
     assert resp.status_code == 200
     assert resp.data["authenticated"] is False
+    assert resp.data["can_manage_settings"] is True

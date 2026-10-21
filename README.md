@@ -52,14 +52,14 @@ omp/
 | Area | Choice |
 |------|--------|
 | Backend | Django 6 + DRF, Pandas, ReportLab, SQLite (optional Postgres) |
-| Frontend | React 18, MUI 7, Chart.js 4, CRA |
-| Quality | Ruff, ESLint, pytest-cov ≥75%, Jest ≥75%, pre-commit |
+| Frontend | React 18, MUI 7, Chart.js 4, Vite |
+| Quality | Ruff, ESLint, pytest-cov ≥75%, Vitest ≥75%, pre-commit |
 | Deploy shape | Docker multi-stage (SPA via WhiteNoise) or Railway-friendly SQLite |
 
 ## Prerequisites
 
 - Python **3.12** recommended (Django 6)
-- Node.js **18+** (20 in CI/Docker)
+- Node.js **20.9+** (Clerk and the Vite dev server)
 - FUDO export access
 
 ## Quick start
@@ -147,7 +147,7 @@ Full agent-oriented detail: [`AGENTS.md`](AGENTS.md).
 ## Development notes
 
 - Session data in SQLite (`UserSessionData`), 24h cookie age; DataFrames pickled in `BinaryField`
-- FE proxies `/api` through `setupProxy.js` — **do not** set `axios.defaults.baseURL` in development
+- FE proxies `/api` through Vite — **do not** set `axios.defaults.baseURL` in development
 - Cast numpy types to Python natives before JSON responses
 - Pre-commit runs ruff, eslint, and coverage-gated unit tests on commit (`make dev-tools`)
 

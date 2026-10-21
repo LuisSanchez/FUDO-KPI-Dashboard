@@ -42,6 +42,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "simulator.middleware.ClerkSessionMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -124,7 +125,7 @@ USE_TZ = True
 STATIC_URL = "static/"
 
 # When running in Docker, frontend_build exists and we serve the React SPA from it.
-# Point STATIC_ROOT at frontend_build/static so /static/js/... maps to the CRA build.
+# Vite writes hashed files under frontend_build/static (assetsDir), which WhiteNoise serves.
 FRONTEND_BUILD_DIR = BASE_DIR / "frontend_build"
 if FRONTEND_BUILD_DIR.exists():
     STATIC_ROOT = str(FRONTEND_BUILD_DIR / "static")
@@ -159,7 +160,15 @@ GOOGLE_CLIENT_SECRET = env.str("GOOGLE_CLIENT_SECRET", default="")
 # When True, API endpoints (except auth/config) require an authenticated user.
 REQUIRE_AUTH = env.bool("REQUIRE_AUTH", default=False)
 
-# Chat over the local numbers. The key stays server-side. Empty disables the endpoint.
+# Chat over the local numbers. The key stays server-side. Empty disables OpenRouter.
 OPENROUTER_API_KEY = env.str("OPENROUTER_API_KEY", default="")
 OPENROUTER_MODEL = env.str("OPENROUTER_MODEL", default="x-ai/grok-4.7")
 OPENROUTER_BASE_URL = env.str("OPENROUTER_BASE_URL", default="https://openrouter.ai/api/v1")
+
+# Local Ollama. Docker overrides this so the container can reach the host.
+OLLAMA_BASE_URL = env.str("OLLAMA_BASE_URL", default="http://127.0.0.1:11434")
+
+# Clerk. Empty leaves the API open (single-user machine). Never expose the secret to the browser.
+CLERK_SECRET_KEY = env.str("CLERK_SECRET_KEY", default="")
+# The only account that may change AI settings once Clerk is on. Not sent to the browser.
+SUPER_ADMIN_EMAIL = env.str("SUPER_ADMIN_EMAIL", default="")

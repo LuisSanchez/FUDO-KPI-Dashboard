@@ -22,8 +22,8 @@ Full-stack **pizza franchise finance dashboard**. Owners upload FUDO POS Excel e
 |-------|------|
 | Backend | Django **6.0**, DRF, Pandas, OpenPyXL, ReportLab, django-environ |
 | DB | SQLite by default; optional `DATABASE_URL` → Postgres (Neon) |
-| Frontend | React 18, MUI 7, Chart.js 4, Axios, CRA (`react-scripts` 5) |
-| Unit tests | pytest + pytest-django + coverage (**≥75%**); Jest (**≥75%** on unit surface) |
+| Frontend | React 18, MUI 7, Chart.js 4, Axios, Vite |
+| Unit tests | pytest + pytest-django + coverage (**≥75%**); Vitest (**≥75%** on unit surface) |
 | Lint | **Ruff** (backend), **ESLint** (frontend) |
 | Quality gate | **pre-commit** (lint + unit tests + coverage) |
 | E2E | Playwright under `e2e/` (optional; not in Docker/Railway image) |
@@ -40,7 +40,7 @@ omp/
 ├── .pre-commit-config.yaml   # ruff, eslint, coverage-gated unit tests
 ├── scripts/
 │   ├── check-backend.sh      # pytest + coverage fail_under=75
-│   └── check-frontend.sh     # Jest CI + coverage thresholds
+│   └── check-frontend.sh     # Vitest + coverage thresholds
 ├── docs/
 │   ├── AUTH_AND_NEON.md      # Optional OAuth + DATABASE_URL
 │   └── plans/                # Historical modernization notes
@@ -58,7 +58,7 @@ omp/
 │       ├── views.py          # HTTP/API only — thin
 │       ├── auth_views.py     # Google OAuth (optional)
 │       ├── urls.py
-│       ├── models.py         # UserSessionData, UserProfile, MonthAssumption
+│       ├── models.py         # UserSessionData, UserProfile, MonthAssumption, AiSettings
 │       ├── report.py         # PDF (reportlab)
 │       ├── data_processing.py# PUBLIC FACADE — re-exports engine API
 │       ├── processing/
@@ -71,17 +71,19 @@ omp/
 │       │   └── month_history.py  # Saved months; adjustments are not written back
 │       └── tests/            # unit + API tests
 └── frontend/
-    ├── package.json          # test:ci, lint, coverageThreshold
+    ├── package.json          # test:ci, lint
+    ├── index.html            # Vite entry
+    ├── vite.config.js        # dev proxy /api, Vitest, build outDir `build`
     └── src/
         ├── App.js            # Main shell: state wiring, layout
         ├── pages/DashboardPage.js  # Thin re-export of App (SoC shell)
-        ├── api/client.js     # Axios API helpers (withCredentials)
+        ├── api/client.js     # Axios API helpers (withCredentials, Clerk bearer)
+        ├── auth/             # Clerk gate. App stays usable when the publishable key is empty
         ├── hooks/            # useAuth, useSimulatorData, downloads, tour
         ├── utils/formatters.js
         ├── theme.js / ColorModeContext.js
         ├── charts/           # Chart.js components + ChartsSection
-        ├── components/       # MUI sections/modals
-        └── setupProxy.js     # /api → backend (do NOT set axios baseURL)
+        └── components/       # MUI sections/modals, AiSettingsDialog
 ```
 
 ---
@@ -92,7 +94,7 @@ omp/
 Browser (React SPA :3000)
     │  relative /api/*  + session cookie
     ▼
-CRA setupProxy  ──►  Django DRF (:8000)
+Vite proxy /api  ──►  Django DRF (:8000)
                         │
                         ├─ views / auth_views     (HTTP, validation, status codes)
                         ├─ services/session_store (UserSessionData pickle I/O)
@@ -113,7 +115,7 @@ CRA setupProxy  ──►  Django DRF (:8000)
 | PDF | `simulator/report.py` |
 | FE HTTP | `frontend/src/api/client.js` |
 | FE upload/KPI state | `hooks/useSimulatorData.js` |
-| FE auth | `hooks/useAuth.js` + `components/GoogleSignIn.js` |
+| FE auth | `auth/ClerkGate.js`. Optional GIS stays in `hooks/useAuth.js` (off unless configured) |
 
 When adding features: put logic in **engine** (live KPIs) or **monthly** (history), wire thin endpoints in **views**, reuse **data_processing** imports if existing code does. Avoid growing `views.py` with pandas.
 
@@ -137,7 +139,7 @@ make run              # Django :8000 + React :3000
 # Quality (also run by pre-commit)
 make lint             # ruff + eslint
 make test-be          # pytest + coverage ≥75%
-make test-fe          # Jest unit + coverage ≥75%
+make test-fe          # Vitest unit + coverage ≥75%
 make test             # both
 make check            # lint + test
 
@@ -160,7 +162,7 @@ cd backend && ../.venv/bin/pytest
 
 **Frontend unit tests only:**
 ```bash
-cd frontend && npm run test:ci   # CI=true, coverage thresholds in package.json
+cd frontend && npm run test:ci   # Vitest, coverage thresholds in vite.config.js
 cd frontend && npm run lint
 ```
 
@@ -183,7 +185,9 @@ cd e2e && npm i && npx playwright install chromium && npm test
 | GET | `history/` | Saved months. Payroll assumption and Uber PDF settlement are applied on the way out. `default_sueldos` is 1_300_000. |
 | POST | `history/sueldos/` | Body `month` (`YYYY-MM`) and `sueldos` (replaces file payroll, 0 allowed) or `reset: true`. Stored on `MonthAssumption`, not the 24h session. |
 | POST | `history/import-archive/` | Load `docs/2026` ventas + gastos into the session. Stored rows stay raw. |
-| POST | `chat/` | Questions about the loaded numbers. OpenRouter tool loop over a local SQLite. 503 without `OPENROUTER_API_KEY`. |
+| POST | `chat/` | Questions over a local SQLite. Uses the saved provider: OpenRouter (503 without `OPENROUTER_API_KEY`) or local Ollama. |
+| GET, PUT | `settings/ai/` | Super admin only, once `CLERK_SECRET_KEY` is set. Chooses OpenRouter or Ollama. Open while Clerk is off. |
+| GET | `settings/ai/ollama-models/` | Models reported by the local Ollama. Same permission as the setting. |
 | GET | `data/sales/` | Product aggregation |
 | GET | `data/expenses/` | Expense rows |
 | GET | `data/charts/` | Charts + `channel_split` + `channel_by_category` |
@@ -214,7 +218,7 @@ All numpy/pandas scalars returned from views must be cast to Python `int` / `flo
 4. **Break-even / 25% targets** — prefer **tickets** (`Id. Venta` unique), not loose unit counts, in simulators and PDF.
 5. **Price simulator** — `price_increase_clp` applies only to **Especialidades**.
 6. **Session** — re-uploading sales clears expenses; expenses months must overlap sales months.
-7. **Proxy** — never set `axios.defaults.baseURL` in FE dev; use relative `/api` + `withCredentials`.
+7. **Proxy** — never set `axios.defaults.baseURL` in FE dev; Vite proxies relative `/api`, and the client sends `withCredentials`. When `CLERK_SECRET_KEY` is set, `/api/` also requires the Clerk session JWT.
 8. **Month history is a separate path.** It reads `Descuentos` and estimates Uber cash at 26% of what the customer paid. `DEFAULT_MONTH_SUELDOS` (1_300_000) replaces the file payroll for the month being evaluated; it is not added on top. Overrides live in `MonthAssumption`. Do not write that adjusted EBITDA back into `month_history`, and do not copy this formula into the live KPI engine.
 9. **Uber settlement on the history screen** — show the 26% FUDO estimate beside the PDF (depósito, tasa, anuncios, ajustes). The P&L commission is the PDF “Tasas de servicio” line ÷ 1.19 when a statement exists (IVA on the fee is a credit, not a cost). The bank deposit is not the P&L cost. Do not change `UBER_COMMISSION_RATE`.
 
@@ -304,7 +308,9 @@ Do not “fix” any of this silently. New monthly exports should be checked aga
 | New API endpoint | `views.py` + `urls.py` + API test |
 | Session storage | `services/session_store.py` |
 | Month history / payroll assumption | `processing/monthly.py`, `services/month_history.py`, `components/MonthHistory.js` |
-| Questions about the data | `services/analytics_db.py`, `services/openrouter_chat.py`, `components/DataChat.js` |
+| Questions about the data | `services/analytics_db.py`, `services/openrouter_chat.py`, `services/ollama_chat.py`, `components/DataChat.js` |
+| Which model answers | `models.AiSettings`, `services/ai_settings.py`, `components/AiSettingsDialog.js` |
+| Clerk login | `services/clerk_auth.py`, `middleware.py`, `auth/ClerkGate.js`. Super admin is `SUPER_ADMIN_EMAIL` |
 | PDF layout | `report.py` |
 | FE API call | `api/client.js` |
 | Upload/month/KPI state | `hooks/useSimulatorData.js` |
@@ -325,17 +331,21 @@ Do not “fix” any of this silently. New monthly exports should be checked aga
 | `GOOGLE_OAUTH_ENABLED` | false | Enable GIS login |
 | `GOOGLE_CLIENT_ID` | empty | OAuth client |
 | `REQUIRE_AUTH` | false | Hard-gate APIs (use carefully) |
-| `OPENROUTER_API_KEY` | empty | Chat. Empty returns 503. Server-side only |
-| `OPENROUTER_MODEL` | `x-ai/grok-4.7` | OpenRouter model for the chat |
+| `OPENROUTER_API_KEY` | empty | OpenRouter chat. Empty returns 503 while that provider is selected. Server-side only |
+| `OPENROUTER_MODEL` | `x-ai/grok-4.7` | Used when Configuración leaves the OpenRouter model blank |
 | `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | OpenRouter API root |
+| `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Local Ollama. Docker compose sets `http://host.docker.internal:11434` |
+| `CLERK_SECRET_KEY` | empty | Verifies session JWTs. Empty leaves `/api/` open. Never send it to the browser |
+| `SUPER_ADMIN_EMAIL` | empty | Only this address can change AI settings once Clerk is on. Compared case-insensitively. Never sent to the browser |
+| `VITE_CLERK_PUBLISHABLE_KEY` | empty | Frontend only (`frontend/.env`). Empty renders the app without a login wall |
 
-Frontend Docker: `REACT_APP_BACKEND_URL=http://backend:8000` for proxy target.
+Frontend Docker: `VITE_BACKEND_URL=http://backend:8000` for the Vite proxy. Do not set `axios` `baseURL`. Placeholders live in `env.sample`.
 
 ---
 
 ## Out of scope unless requested
 
-- Rewriting CRA → Next.js / Vite
+- Rewriting the Vite SPA to Next.js
 - Making OAuth or Neon mandatory
 - Dropping session/pickle model for a full multi-user data warehouse
 - Deleting historical notebook cells or lab analyses
